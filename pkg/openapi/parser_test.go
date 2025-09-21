@@ -186,10 +186,10 @@ func TestMethodOrder(t *testing.T) {
 		for j := i + 1; j < len(methods); j++ {
 			order1 := methodOrder(methods[i])
 			order2 := methodOrder(methods[j])
-			
+
 			expectedIdx1 := indexOf(expectedOrder, methods[i])
 			expectedIdx2 := indexOf(expectedOrder, methods[j])
-			
+
 			if expectedIdx1 < expectedIdx2 && order1 >= order2 {
 				t.Errorf("Expected %s to come before %s", methods[i], methods[j])
 			}

@@ -115,8 +115,8 @@ func TestLambdaResponseToHTTP(t *testing.T) {
 
 func TestClientURLSchemeDetection(t *testing.T) {
 	tests := []struct {
-		name      string
-		url       string
+		name       string
+		url        string
 		wantLambda bool
 	}{
 		{"HTTP URL", "http://example.com/path", false},

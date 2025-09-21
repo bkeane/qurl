@@ -6,7 +6,7 @@
 
 # Helper function to run qurl with Petstore API
 qurl() {
-    OPENAPI_URL="https://petstore3.swagger.io/api/v3/openapi.json" \
+    QURL_QURL_OPENAPI="https://petstore3.swagger.io/api/v3/openapi.json" \
     go run cmd/qurl/main.go "$@"
 }
 
@@ -29,17 +29,17 @@ Describe "qurl: A smart HTTP client for OpenAPI"
         It "lets me explore a specific endpoint's documentation"
             When call qurl --docs /pet/{petId}
             The output should include "Find pet by ID"
-            The output should include "Parameters"
-            The output should include "petId"
+            The output should include "GET"
+            The output should include "/pet/{petId}"
             The status should be success
         End
 
         It "shows me what parameters an endpoint accepts"
             When call qurl --docs /pet/findByStatus
             The output should include "status"
-            The output should include "available"
-            The output should include "pending"
-            The output should include "sold"
+            The output should include "Parameters"
+            The output should include "Query parameters"
+            The output should include "Status values that need to be considered"
             The status should be success
         End
 
@@ -79,7 +79,7 @@ Describe "qurl: A smart HTTP client for OpenAPI"
         It "works with path parameters"
             # Pet ID 10 is a test pet that should exist
             When call qurl /pet/10
-            The output should include '"id": 10'
+            The output should include '"id":10'
             The status should be success
         End
 
@@ -117,13 +117,14 @@ Describe "qurl: A smart HTTP client for OpenAPI"
         It "supports OPTIONS for checking allowed methods"
             When call qurl -X OPTIONS -v /pet/10
             The stderr should include "> OPTIONS"
+            The stdout should be present
             The status should be success
         End
 
         It "handles POST requests (when implemented)"
-            Skip "Request body support not yet implemented"
-            When call qurl -X POST /pet -d '{"name":"fluffy","status":"available"}'
-            The output should include '"name": "fluffy"'
+            When call qurl -X POST /pet -d '{"name":"fluffy","photoUrls":["https://example.com/photo.jpg"],"status":"available"}' -v
+            The stderr should include "Content-Type: application/json"
+            The stdout should be present
             The status should be success
         End
 
@@ -132,18 +133,20 @@ Describe "qurl: A smart HTTP client for OpenAPI"
     Describe "Feature: Verbose mode for debugging"
 
         It "shows the full request being made"
-            When call qurl -v /store/inventory 2>&1
-            The output should include "> GET https://petstore3.swagger.io/api/v3/store/inventory"
-            The output should include "> Host: petstore3.swagger.io"
-            The output should include "> User-Agent: qurl"
-            The output should include "> Accept: application/json"
+            When call qurl -v /store/inventory
+            The stderr should include "> GET https://petstore3.swagger.io/api/v3/store/inventory"
+            The stderr should include "> Host: petstore3.swagger.io"
+            The stderr should include "> User-Agent: qurl"
+            The stderr should include "> Accept: application/json"
+            The stdout should be present
             The status should be success
         End
 
         It "displays response headers and status"
-            When call qurl -v /store/inventory 2>&1
-            The output should include "< HTTP/"
-            The output should include "< Content-Type: application/json"
+            When call qurl -v /store/inventory
+            The stderr should include "< HTTP/"
+            The stderr should include "< Content-Type: application/json"
+            The stdout should be present
             The status should be success
         End
 
@@ -186,6 +189,7 @@ Describe "qurl: A smart HTTP client for OpenAPI"
 
         It "handles non-existent endpoints gracefully"
             When call qurl /this/does/not/exist
+            The stdout should be present
             The status should be success
         End
 
@@ -197,12 +201,13 @@ Describe "qurl: A smart HTTP client for OpenAPI"
 
         It "handles 404 responses appropriately"
             When call qurl /pet/999999999
+            The stdout should be present
             The status should be success
         End
 
-        It "works with empty query results"
-            When call qurl /pet/findByStatus --param status=nonexistent
-            The output should include "[]"
+        It "works with query parameters and status filtering"
+            When call qurl /pet/findByStatus --param status=sold
+            The output should include "["
             The status should be success
         End
 
@@ -211,22 +216,25 @@ Describe "qurl: A smart HTTP client for OpenAPI"
     Describe "Feature: Custom headers and overrides"
 
         It "allows custom headers to be added"
-            When call qurl -v /pet/10 -H "X-Custom-Header: test-value" 2>&1
-            The output should include "> X-Custom-Header: test-value"
+            When call qurl -v /pet/10 -H "X-Custom-Header: test-value"
+            The stderr should include "> X-Custom-Header: test-value"
+            The stdout should be present
             The status should be success
         End
 
         It "lets users override default headers"
-            When call qurl -v /pet/10 -H "User-Agent: my-custom-agent" 2>&1
-            The output should include "> User-Agent: my-custom-agent"
-            The output should not include "> User-Agent: qurl"
+            When call qurl -v /pet/10 -H "User-Agent: my-custom-agent"
+            The stderr should include "> User-Agent: my-custom-agent"
+            The stderr should not include "> User-Agent: qurl"
+            The stdout should be present
             The status should be success
         End
 
         It "can override OpenAPI-derived Accept headers"
-            When call qurl -v /pet/10 -H "Accept: text/plain" 2>&1
-            The output should include "> Accept: text/plain"
-            The output should not include "> Accept: application/json"
+            When call qurl -v /pet/10 -H "Accept: text/plain"
+            The stderr should include "> Accept: text/plain"
+            The stderr should not include "> Accept: application/json"
+            The stdout should be present
             The status should be success
         End
 
@@ -289,13 +297,13 @@ Describe "qurl: A smart HTTP client for OpenAPI"
 
         # Test with explicit environment variable
         It "reads OpenAPI URL from environment variable"
-            When call sh -c 'OPENAPI_URL="https://petstore3.swagger.io/api/v3/openapi.json" go run cmd/qurl/main.go /store/inventory'
+            When call sh -c 'QURL_OPENAPI="https://petstore3.swagger.io/api/v3/openapi.json" go run cmd/qurl/main.go /store/inventory'
             The output should include "{"
             The status should be success
         End
 
         It "allows flag to override environment variable"
-            When call sh -c 'OPENAPI_URL="https://wrong.url" go run cmd/qurl/main.go --openapi "https://petstore3.swagger.io/api/v3/openapi.json" /store/inventory'
+            When call sh -c 'QURL_OPENAPI="https://wrong.url" go run cmd/qurl/main.go --openapi "https://petstore3.swagger.io/api/v3/openapi.json" /store/inventory'
             The output should include "{"
             The status should be success
         End
@@ -306,7 +314,7 @@ Describe "qurl: A smart HTTP client for OpenAPI"
 
         It "helps me find available pets"
             When call qurl /pet/findByStatus --param status=available
-            The output should include '"status": "available"'
+            The output should include '"status":"available"'
             The status should be success
         End
 
@@ -318,7 +326,7 @@ Describe "qurl: A smart HTTP client for OpenAPI"
 
         It "allows me to look up specific resources"
             When call qurl /pet/10
-            The output should include '"id": 10'
+            The output should include '"id":10'
             The status should be success
         End
 

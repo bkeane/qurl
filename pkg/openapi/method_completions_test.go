@@ -198,7 +198,7 @@ func TestViewerMethodCompletions(t *testing.T) {
 
 			// Test MethodCompletions
 			methods, err := viewer.MethodCompletions(context.Background(), tt.path)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Fatalf("Expected error, got nil")
@@ -247,7 +247,7 @@ func TestViewerMethodCompletionsWithURL(t *testing.T) {
 	// Test MethodCompletions with actual URL loading using our real 1Password Connect example
 	// Use standard HTTP client for real URL
 	viewer := NewViewer(
-		&http.Client{}, 
+		&http.Client{},
 		"https://raw.githubusercontent.com/konfig-sdks/openapi-examples/main/1-password/connect/openapi.yaml",
 	)
 

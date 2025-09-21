@@ -177,12 +177,12 @@ func matchesPathFilter(path, filter string) bool {
 	if filter == "" || filter == "*" {
 		return true
 	}
-	
+
 	if strings.HasSuffix(filter, "*") {
 		prefix := strings.TrimSuffix(filter, "*")
 		return strings.HasPrefix(path, prefix)
 	}
-	
+
 	// Check for exact match only
 	return path == filter
 }
@@ -196,7 +196,7 @@ func matchesMethodFilter(method, filter string) bool {
 
 func getOperations(pathItem *v3.PathItem) map[string]*v3.Operation {
 	ops := make(map[string]*v3.Operation)
-	
+
 	if pathItem.Get != nil {
 		ops["get"] = pathItem.Get
 	}
@@ -218,39 +218,39 @@ func getOperations(pathItem *v3.PathItem) map[string]*v3.Operation {
 	if pathItem.Options != nil {
 		ops["options"] = pathItem.Options
 	}
-	
+
 	return ops
 }
 
 func mergeParameters(pathParams, opParams []*v3.Parameter) []*v3.Parameter {
 	paramMap := make(map[string]*v3.Parameter)
-	
+
 	for _, p := range pathParams {
 		if p.Name != "" && p.In != "" {
 			key := fmt.Sprintf("%s:%s", p.In, p.Name)
 			paramMap[key] = p
 		}
 	}
-	
+
 	for _, p := range opParams {
 		if p.Name != "" && p.In != "" {
 			key := fmt.Sprintf("%s:%s", p.In, p.Name)
 			paramMap[key] = p
 		}
 	}
-	
+
 	var result []*v3.Parameter
 	for _, p := range paramMap {
 		result = append(result, p)
 	}
-	
+
 	sort.Slice(result, func(i, j int) bool {
 		if result[i].In != result[j].In {
 			return parameterInOrder(result[i].In) < parameterInOrder(result[j].In)
 		}
 		return result[i].Name < result[j].Name
 	})
-	
+
 	return result
 }
 

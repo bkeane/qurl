@@ -229,7 +229,7 @@ func TestViewerNoMatchingPaths(t *testing.T) {
 	}`)
 
 	viewer := NewViewer(&MockHTTPClient{}, "")
-	
+
 	output, err := viewer.ViewFromBytes(minimalSpec, "/nonexistent", "GET")
 	if err != nil {
 		t.Fatalf("Unexpected error: %v", err)

@@ -262,7 +262,7 @@ func TestViewerParamCompletions(t *testing.T) {
 
 			// Test ParamCompletions
 			params, err := viewer.ParamCompletions(context.Background(), tt.path, tt.method)
-			
+
 			if tt.expectError {
 				if err == nil {
 					t.Fatalf("Expected error, got nil")
@@ -311,7 +311,7 @@ func TestViewerParamCompletionsWithURL(t *testing.T) {
 	// Test ParamCompletions with actual URL loading using our real 1Password Connect example
 	// Use standard HTTP client for real URL
 	viewer := NewViewer(
-		&http.Client{}, 
+		&http.Client{},
 		"https://raw.githubusercontent.com/konfig-sdks/openapi-examples/main/1-password/connect/openapi.yaml",
 	)
 

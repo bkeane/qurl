@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	v3 "github.com/pb33f/libopenapi/datamodel/high/v3"
 )
 
 // SetHeaders enriches an HTTP request with headers based on the OpenAPI specification.
@@ -109,8 +111,8 @@ func (v *Viewer) parseSpecURL() (scheme, host string, err error) {
 }
 
 // BaseURL returns the base URL for API requests from the OpenAPI specification.
-// It checks the servers section first, and falls back to the spec URL's host if no servers are defined.
-// This includes the protocol (scheme) and host, plus any base path from the server configuration.
+// It checks the servers section first, and falls back to just the spec URL's host if no servers are defined.
+// This approach respects explicit server configurations while providing a conservative fallback.
 func (v *Viewer) BaseURL(ctx context.Context) (string, error) {
 	if err := v.ensureSpecLoaded(ctx); err != nil {
 		return "", err
@@ -122,43 +124,44 @@ func (v *Viewer) BaseURL(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("getting servers from spec: %w", err)
 	}
 
-	if len(servers) == 0 {
-		// If no servers defined, try to extract from OpenAPI URL
-		scheme, host, err := v.parseSpecURL()
-		if err != nil {
-			return "", fmt.Errorf("no servers defined and %w", err)
+	// Priority 1: Use explicit server URL from OpenAPI spec if available
+	if len(servers) > 0 && servers[0].URL != "" {
+		serverURL := servers[0].URL
+
+		// Check if the server URL is relative
+		if !strings.HasPrefix(serverURL, "http://") && !strings.HasPrefix(serverURL, "https://") {
+			// It's a relative URL - combine with OpenAPI URL host
+			scheme, host, err := v.parseSpecURL()
+			if err != nil {
+				return "", fmt.Errorf("server URL is relative but %w", err)
+			}
+
+			// Ensure relative URL starts with /
+			if !strings.HasPrefix(serverURL, "/") {
+				serverURL = "/" + serverURL
+			}
+
+			return fmt.Sprintf("%s://%s%s", scheme, host, serverURL), nil
 		}
 
-		// Use the scheme and host from the OpenAPI URL
-		baseURL := fmt.Sprintf("%s://%s", scheme, host)
-		return baseURL, nil
+		// Absolute server URL - use as-is
+		return serverURL, nil
 	}
 
-	// Get the first server URL
-	serverURL := servers[0].URL
-	if serverURL == "" {
-		// Fallback to OpenAPI URL host
-		scheme, host, err := v.parseSpecURL()
-		if err != nil {
-			return "", fmt.Errorf("server URL is empty and %w", err)
-		}
-
-		baseURL := fmt.Sprintf("%s://%s", scheme, host)
-		return baseURL, nil
+	// Priority 2: Conservative fallback to just the host from spec URL
+	// No assumptions about paths - just use scheme + host
+	scheme, host, err := v.parseSpecURL()
+	if err != nil {
+		return "", fmt.Errorf("no servers defined and %w", err)
 	}
 
-	// Check if the server URL is relative
-	if !strings.HasPrefix(serverURL, "http://") && !strings.HasPrefix(serverURL, "https://") {
-		// It's a relative URL - need to combine with OpenAPI URL host
-		scheme, host, err := v.parseSpecURL()
-		if err != nil {
-			return "", fmt.Errorf("server URL is relative but %w", err)
-		}
+	return fmt.Sprintf("%s://%s", scheme, host), nil
+}
 
-		// Combine the host from OpenAPI URL with the relative server URL
-		baseURL := fmt.Sprintf("%s://%s%s", scheme, host, serverURL)
-		return baseURL, nil
+// GetServers returns the servers from the OpenAPI specification
+func (v *Viewer) GetServers() ([]*v3.Server, error) {
+	if err := v.ensureSpecLoaded(context.Background()); err != nil {
+		return nil, err
 	}
-
-	return serverURL, nil
+	return v.parser.GetServers()
 }

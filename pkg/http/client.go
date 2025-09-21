@@ -17,6 +17,26 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/lambda/types"
 )
 
+// LambdaConfig holds default configuration for Lambda event conversion
+type LambdaConfig struct {
+	AccountID    string
+	APIID        string
+	DomainName   string
+	DomainPrefix string
+	UserAgent    string
+}
+
+// DefaultLambdaConfig returns the default Lambda configuration
+func DefaultLambdaConfig() LambdaConfig {
+	return LambdaConfig{
+		AccountID:    "123456789012",   // Dummy account ID
+		APIID:        "lambda-adapter", // Identifier for Lambda adapter
+		DomainName:   "lambda.local",   // Dummy domain
+		DomainPrefix: "lambda",         // Dummy prefix
+		UserAgent:    "qurl",
+	}
+}
+
 // Client wraps the standard http.Client and adds Lambda invocation support
 type Client struct {
 	*http.Client
@@ -129,7 +149,7 @@ func httpRequestToLambdaEvent(req *http.Request) (*events.APIGatewayV2HTTPReques
 	// Read body if present
 	var bodyString string
 	var isBase64Encoded bool
-	
+
 	if req.Body != nil {
 		bodyBytes, err := io.ReadAll(req.Body)
 		if err != nil {
@@ -137,7 +157,7 @@ func httpRequestToLambdaEvent(req *http.Request) (*events.APIGatewayV2HTTPReques
 		}
 		// Restore body for potential retries
 		req.Body = io.NopCloser(bytes.NewReader(bodyBytes))
-		
+
 		// For now, we'll send everything as plain text
 		bodyString = string(bodyBytes)
 		isBase64Encoded = false
@@ -155,6 +175,9 @@ func httpRequestToLambdaEvent(req *http.Request) (*events.APIGatewayV2HTTPReques
 		queryParams[key] = strings.Join(values, ",")
 	}
 
+	// Get default Lambda configuration
+	config := DefaultLambdaConfig()
+
 	// Construct API Gateway v2 event structure using the official type
 	event := &events.APIGatewayV2HTTPRequest{
 		Version:               "2.0",
@@ -164,16 +187,16 @@ func httpRequestToLambdaEvent(req *http.Request) (*events.APIGatewayV2HTTPReques
 		Headers:               headers,
 		QueryStringParameters: queryParams,
 		RequestContext: events.APIGatewayV2HTTPRequestContext{
-			AccountID:    "123456789012", // Dummy account ID
-			APIID:        "lambda-adapter", // Identifier for Lambda adapter
-			DomainName:   "lambda.local", // Dummy domain
-			DomainPrefix: "lambda", // Dummy prefix
+			AccountID:    config.AccountID,
+			APIID:        config.APIID,
+			DomainName:   config.DomainName,
+			DomainPrefix: config.DomainPrefix,
 			HTTP: events.APIGatewayV2HTTPRequestContextHTTPDescription{
 				Method:    req.Method,
 				Path:      req.URL.Path,
 				Protocol:  "HTTP/1.1",
 				SourceIP:  "127.0.0.1",
-				UserAgent: "qurl",
+				UserAgent: config.UserAgent,
 			},
 			RequestID: fmt.Sprintf("qurl-%d", time.Now().UnixNano()),
 			RouteKey:  fmt.Sprintf("%s %s", req.Method, req.URL.Path),

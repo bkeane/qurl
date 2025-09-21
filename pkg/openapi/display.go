@@ -74,8 +74,8 @@ var (
 			Bold(true)
 
 	descriptionStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#ABB2BF")).
-			MarginLeft(2)
+				Foreground(lipgloss.Color("#ABB2BF")).
+				MarginLeft(2)
 
 	codeStyle = lipgloss.NewStyle().
 			Background(lipgloss.Color("#2C323C")).
@@ -152,7 +152,7 @@ func (d *Displayer) RenderIndex(paths []PathInfo) string {
 		methodStyle := getMethodStyle(path.Method)
 		output.WriteString("  ")
 		output.WriteString(methodStyle.Render(path.Method))
-		
+
 		if path.Summary != "" {
 			output.WriteString("  ")
 			output.WriteString(summaryStyle.Render(path.Summary))
@@ -283,7 +283,7 @@ func (d *Displayer) renderRequestBody(body *v3.RequestBody) string {
 			output.WriteString("Content Type: ")
 			output.WriteString(codeStyle.Render(contentType))
 			output.WriteString("\n")
-			
+
 			if mediaType.Schema != nil {
 				output.WriteString("\n")
 				output.WriteString(d.renderSchema(mediaType.Schema.Schema(), 0))
@@ -332,7 +332,7 @@ func (d *Displayer) renderResponse(code string, response *v3.Response) string {
 			output.WriteString("    Content Type: ")
 			output.WriteString(codeStyle.Render(contentType))
 			output.WriteString("\n")
-			
+
 			if mediaType.Schema != nil && code == "200" {
 				schemaOutput := d.renderSchema(mediaType.Schema.Schema(), 2)
 				if schemaOutput != "" {
@@ -358,7 +358,7 @@ func getStatusStyle(code string) lipgloss.Style {
 	if code == "default" {
 		return codeStyle
 	}
-	
+
 	if len(code) > 0 {
 		switch code[0] {
 		case '2':
@@ -379,7 +379,7 @@ func getStatusStyle(code string) lipgloss.Style {
 				Bold(true)
 		}
 	}
-	
+
 	return codeStyle
 }
 
@@ -404,7 +404,7 @@ func (d *Displayer) renderAuthInfo() string {
 		if i > 0 {
 			output.WriteString(" OR ")
 		}
-		
+
 		if secReq == nil || secReq.Requirements == nil {
 			output.WriteString(summaryStyle.Render("No authentication required"))
 			continue
@@ -466,7 +466,7 @@ func (d *Displayer) renderSchema(schema *base.Schema, indent int) string {
 
 	if len(schema.Type) > 0 {
 		schemaType := schema.Type[0]
-		
+
 		if schemaType == "object" {
 			output.WriteString(indentStr)
 			output.WriteString(paramStyle.Render("Example (JSON):"))
@@ -503,30 +503,30 @@ func (d *Displayer) renderSchema(schema *base.Schema, indent int) string {
 func (d *Displayer) generateJSONExample(schema *base.Schema, indent int) string {
 	var output strings.Builder
 	indentStr := strings.Repeat("  ", indent)
-	
+
 	output.WriteString(indentStr)
 	output.WriteString(codeStyle.Render("{"))
 	output.WriteString("\n")
-	
+
 	if schema.Properties != nil {
 		// Count properties first
 		totalProps := 0
 		for range schema.Properties.FromOldest() {
 			totalProps++
 		}
-		
+
 		i := 0
 		for propName, propSchema := range schema.Properties.FromOldest() {
 			output.WriteString(indentStr + "  ")
 			output.WriteString(codeStyle.Render(fmt.Sprintf(`"%s": `, propName)))
-			
+
 			propValue := d.getExampleValue(propSchema.Schema())
 			output.WriteString(codeStyle.Render(propValue))
-			
+
 			if i < totalProps-1 {
 				output.WriteString(",")
 			}
-			
+
 			isRequired := false
 			for _, req := range schema.Required {
 				if req == propName {
@@ -534,25 +534,25 @@ func (d *Displayer) generateJSONExample(schema *base.Schema, indent int) string 
 					break
 				}
 			}
-			
+
 			if isRequired {
 				output.WriteString(" ")
 				output.WriteString(requiredStyle.Render("// required"))
 			}
-			
+
 			if propSchema.Schema().Description != "" {
 				output.WriteString(" ")
 				output.WriteString(summaryStyle.Render(fmt.Sprintf("// %s", propSchema.Schema().Description)))
 			}
-			
+
 			output.WriteString("\n")
 			i++
 		}
 	}
-	
+
 	output.WriteString(indentStr)
 	output.WriteString(codeStyle.Render("}"))
-	
+
 	return output.String()
 }
 
@@ -576,7 +576,7 @@ func (d *Displayer) getExampleValue(schema *base.Schema) string {
 			}
 		}
 	}
-	
+
 	if len(schema.Type) > 0 {
 		switch schema.Type[0] {
 		case "string":
@@ -635,6 +635,6 @@ func (d *Displayer) getExampleValue(schema *base.Schema) string {
 			return "{}"
 		}
 	}
-	
+
 	return "null"
 }
