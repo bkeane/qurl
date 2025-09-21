@@ -1,7 +1,7 @@
 .claude
 
 # Go binaries
-qurl
+/qurl
 *.exe
 *.dll
 *.so
