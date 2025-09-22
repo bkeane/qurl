@@ -52,8 +52,6 @@ homebrew_casks:
       email: bot@goreleaser.com
     commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
     skip_upload: auto
-    test: |
-      system "#{bin}/qurl", "--version"
 
 changelog:
   sort: asc
