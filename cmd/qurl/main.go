@@ -62,6 +62,7 @@ It can display OpenAPI documentation and make HTTP requests with intelligent com
 		Args:              cobra.MaximumNArgs(1),
 		RunE:              runQurl,
 		ValidArgsFunction: pathCompletion,
+		SilenceUsage:      true,
 	}
 
 	// Global flags
@@ -75,7 +76,7 @@ It can display OpenAPI documentation and make HTTP requests with intelligent com
 	rootCmd.PersistentFlags().StringVarP(&data, "data", "d", "", "HTTP POST/PUT/PATCH data")
 	rootCmd.PersistentFlags().StringVar(&server, "server", "", "Server URL or index (overrides OpenAPI servers)")
 	// Custom handling for --sig-v4 flag that can work with or without arguments
-	rootCmd.PersistentFlags().BoolVar(&sigV4Enabled, "sig-v4", false, "Enable AWS SigV4 signing (defaults to 'execute-api' service)")
+	rootCmd.PersistentFlags().BoolVar(&sigV4Enabled, "sig-v4", false, "Enable AWS SigV4 signing")
 	rootCmd.PersistentFlags().StringVar(&sigV4Service, "sig-v4-service", "execute-api", "AWS service name for SigV4 signing")
 	rootCmd.PersistentFlags().StringVar(&bearerToken, "bearer", "", "Bearer token for Authorization header")
 
@@ -603,40 +604,35 @@ func generateCompletionCmd() *cobra.Command {
 
 Bash:
 
+  # Load for current session:
   $ source <(qurl completion bash)
 
-  # To load completions for each session, execute once:
-  # Linux:
-  $ qurl completion bash > /etc/bash_completion.d/qurl
-  # macOS:
-  $ qurl completion bash > $(brew --prefix)/etc/bash_completion.d/qurl
+  # Load for all sessions (add to ~/.bashrc):
+  $ echo 'source <(qurl completion bash)' >> ~/.bashrc
 
 Zsh:
 
-  # If shell completion is not already enabled in your environment,
-  # you will need to enable it.  You can execute the following once:
+  # Load for current session:
+  $ source <(qurl completion zsh)
 
-  $ echo "autoload -U compinit; compinit" >> ~/.zshrc
-
-  # To load completions for each session, execute once:
-  $ qurl completion zsh > "${fpath[1]}/_qurl"
-
-  # You will need to start a new shell for this setup to take effect.
+  # Load for all sessions (add to ~/.zshrc):
+  $ echo 'source <(qurl completion zsh)' >> ~/.zshrc
 
 Fish:
 
+  # Load for current session:
   $ qurl completion fish | source
 
-  # To load completions for each session, execute once:
+  # Load for all sessions:
   $ qurl completion fish > ~/.config/fish/completions/qurl.fish
 
 PowerShell:
 
+  # Load for current session:
   PS> qurl completion powershell | Out-String | Invoke-Expression
 
-  # To load completions for every new session, run:
-  PS> qurl completion powershell > qurl.ps1
-  # and source this file from your PowerShell profile.
+  # Load for all sessions (add to PowerShell profile):
+  PS> Add-Content $PROFILE 'qurl completion powershell | Out-String | Invoke-Expression'
 `,
 		DisableFlagsInUseLine: true,
 		ValidArgs:             []string{"bash", "zsh", "fish", "powershell"},
