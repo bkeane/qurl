@@ -78,6 +78,18 @@ func TestParserGetPaths(t *testing.T) {
 			methodFilter: "POST",
 			wantMinPaths: 3,
 		},
+		{
+			name:         "Filter multiple methods (GET,POST)",
+			pathFilter:   "*",
+			methodFilter: "GET,POST",
+			wantMinPaths: 8, // Should include both GET and POST endpoints
+		},
+		{
+			name:         "Filter multiple methods for specific path",
+			pathFilter:   "/pet/{petId}",
+			methodFilter: "GET,DELETE",
+			wantMinPaths: 2, // /pet/{petId} has both GET and DELETE
+		},
 	}
 
 	for _, tt := range tests {
@@ -159,6 +171,7 @@ func TestMatchesMethodFilter(t *testing.T) {
 		filter string
 		want   bool
 	}{
+		// Single method filters
 		{"get", "*", true},
 		{"GET", "*", true},
 		{"get", "", true},
@@ -166,6 +179,22 @@ func TestMatchesMethodFilter(t *testing.T) {
 		{"GET", "get", true},
 		{"post", "GET", false},
 		{"POST", "get", false},
+		// Multiple method filters (comma-separated)
+		{"GET", "GET,POST", true},
+		{"POST", "GET,POST", true},
+		{"PUT", "GET,POST", false},
+		{"DELETE", "GET,POST,DELETE", true},
+		{"PATCH", "GET,POST,DELETE", false},
+		{"get", "GET,POST", true}, // case insensitive
+		{"post", "GET,POST", true}, // case insensitive
+		{"put", "GET,POST", false}, // case insensitive
+		// Multiple methods with spaces
+		{"GET", "GET, POST", true},
+		{"POST", "GET, POST", true},
+		{"PUT", "GET, POST", false},
+		// Single method in comma-separated format
+		{"GET", "GET,", true},
+		{"POST", "GET,", false},
 	}
 
 	for _, tt := range tests {

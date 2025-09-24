@@ -133,3 +133,90 @@ func TestE2EResponseFormat(t *testing.T) {
 		}
 	})
 }
+
+func TestE2EMultipleMethodsDocumentation(t *testing.T) {
+	// Build the binary first
+	cmd := exec.Command("go", "build", "-o", "qurl_test", ".")
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Failed to build qurl: %v", err)
+	}
+	defer os.Remove("qurl_test")
+
+	tests := []struct {
+		name        string
+		args        []string
+		expectText  []string
+		notExpected []string
+	}{
+		{
+			name: "Single method documentation",
+			args: []string{"-X", "POST", "--docs", "/pet"},
+			expectText: []string{
+				"POST",
+				"Add a new pet to the store",
+			},
+			notExpected: []string{
+				"PUT", // Should not show PUT method
+			},
+		},
+		{
+			name: "Multiple methods documentation",
+			args: []string{"-X", "POST", "-X", "PUT", "--docs", "/pet"},
+			expectText: []string{
+				"POST",
+				"PUT",
+				"Add a new pet to the store",
+				"Update an existing pet",
+			},
+			notExpected: []string{
+				"GET",    // Should not show other methods
+				"DELETE", // Should not show other methods
+			},
+		},
+		{
+			name: "Multiple methods with no match",
+			args: []string{"-X", "GET", "-X", "DELETE", "--docs", "/pet"},
+			expectText: []string{
+				"No endpoints found matching the specified path and method",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := exec.Command("./qurl_test")
+			cmd.Args = append(cmd.Args, tt.args...)
+			cmd.Env = append(os.Environ(), "QURL_OPENAPI=https://petstore3.swagger.io/api/v3/openapi.json")
+
+			var stdout, stderr bytes.Buffer
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			err := cmd.Run()
+			if err != nil {
+				// Check if it's expected to fail
+				if len(tt.expectText) > 0 && tt.expectText[0] == "No endpoints found matching the specified path and method" {
+					// This is expected for the "no match" test case
+				} else {
+					t.Fatalf("Command failed: %v, stderr: %s", err, stderr.String())
+				}
+			}
+
+			output := stdout.String()
+
+			// Check expected text is present
+			for _, expected := range tt.expectText {
+				if !strings.Contains(output, expected) {
+					t.Errorf("Expected output to contain %q, but it didn't. Output: %s", expected, output)
+				}
+			}
+
+			// Check unwanted text is not present
+			for _, notExpected := range tt.notExpected {
+				if strings.Contains(output, notExpected) {
+					t.Errorf("Expected output NOT to contain %q, but it did. Output: %s", notExpected, output)
+				}
+			}
+		})
+	}
+}

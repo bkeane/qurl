@@ -191,6 +191,18 @@ func matchesMethodFilter(method, filter string) bool {
 	if filter == "" || strings.EqualFold(filter, "ANY") || filter == "*" {
 		return true
 	}
+
+	// Handle multiple methods separated by commas
+	if strings.Contains(filter, ",") {
+		methods := strings.Split(filter, ",")
+		for _, m := range methods {
+			if strings.EqualFold(method, strings.TrimSpace(m)) {
+				return true
+			}
+		}
+		return false
+	}
+
 	return strings.EqualFold(method, filter)
 }
 
