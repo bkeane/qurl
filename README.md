@@ -37,21 +37,27 @@ qurl --docs /users
 
 - **No manual URLs**: `qurl /users/me` instead of `curl https://api.example.com/v2/users/me`
 - **Auto-discovery**: Finds servers, parameters, auth requirements from the spec
-- **Tab completion**: Press tab to see available paths and methods
+- **Tab completion**: Press tab to see available paths, methods, and parameters
 - **Built-in docs**: `--docs` shows you what each endpoint does
 
 ## Advanced Features
 
 ### AWS Lambda
 ```bash
-qurl lambda://my-function/path
+export QURL_OPENAPI=lambda://my-function/openapi.json
+qurl /path
 qurl --sig-v4 https://api.aws.com/endpoint
 ```
 
 ### LLM Integration (MCP)
 Let Claude or other LLMs use your API:
 ```bash
-qurl --mcp --openapi https://api.example.com/openapi.json
+export QURL_OPENAPI=https://api.example.com/openapi.json
+qurl --mcp
+
+# Restrict LLM access to specific paths and methods
+qurl --mcp -X GET -X POST /users/
+# Allows /users/{id}, /users/{id}/profile, etc.
 ```
 
 ### Configuration
