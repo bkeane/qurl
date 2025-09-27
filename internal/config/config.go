@@ -49,7 +49,7 @@ type MCPConfig struct {
 // LoggerConfig holds logging configuration
 type LoggerConfig struct {
 	Level      string
-	Pretty     bool
+	Format     string // "pretty" or "json"
 	WithCaller bool
 }
 
@@ -75,7 +75,7 @@ func NewConfig() *Config {
 	return &Config{
 		Logger: LoggerConfig{
 			Level:      "warn",
-			Pretty:     true,
+			Format:     "pretty",
 			WithCaller: false,
 		},
 		Methods: []string{"GET"},
@@ -148,14 +148,36 @@ func LoadFromFlags(flags *pflag.FlagSet) (*Config, error) {
 		config.OpenAPIURL = getOpenAPIURL()
 	}
 
-	// Configure logging based on verbosity and environment
-	if config.Verbose {
-		config.Logger.Level = "debug"
+	// Get server from environment if not set via flag
+	if config.Server == "" {
+		if server := os.Getenv("QURL_SERVER"); server != "" {
+			config.Server = server
+		}
 	}
 
-	// Override with LOG_LEVEL environment variable if set
-	if envLevel := os.Getenv("LOG_LEVEL"); envLevel != "" {
-		config.Logger.Level = strings.ToLower(envLevel)
+	// Get log-level flag value
+	if config.Logger.Level, err = flags.GetString("log-level"); err != nil {
+		return nil, errors.Wrap(err, errors.ErrorTypeConfig, "failed to get log-level flag")
+	}
+
+	// Override with environment variable if flag not explicitly set
+	if !flags.Changed("log-level") {
+		if envLevel := os.Getenv("QURL_LOG_LEVEL"); envLevel != "" {
+			config.Logger.Level = strings.ToLower(envLevel)
+		}
+	}
+
+	// Set log format from environment variable
+	if envFormat := os.Getenv("QURL_LOG_FORMAT"); envFormat != "" {
+		envFormat = strings.ToLower(envFormat)
+		if envFormat == "json" || envFormat == "pretty" {
+			config.Logger.Format = envFormat
+		}
+	}
+
+	// Configure logging based on verbosity
+	if config.Verbose {
+		config.Logger.Level = "debug"
 	}
 
 	// Propagate settings to MCP config

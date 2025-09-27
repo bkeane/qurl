@@ -1,7 +1,10 @@
 package config
 
 import (
+	"os"
 	"testing"
+
+	"github.com/spf13/pflag"
 )
 
 func TestNewConfig(t *testing.T) {
@@ -15,8 +18,8 @@ func TestNewConfig(t *testing.T) {
 	if cfg.Logger.Level != "warn" {
 		t.Errorf("default log level: got %q, expected %q", cfg.Logger.Level, "warn")
 	}
-	if cfg.Logger.Pretty != true {
-		t.Errorf("default pretty logging: got %v, expected %v", cfg.Logger.Pretty, true)
+	if cfg.Logger.Format != "pretty" {
+		t.Errorf("default log format: got %q, expected %q", cfg.Logger.Format, "pretty")
 	}
 	if cfg.Logger.WithCaller != false {
 		t.Errorf("default caller logging: got %v, expected %v", cfg.Logger.WithCaller, false)
@@ -168,6 +171,206 @@ func TestMCPConfig_Validation(t *testing.T) {
 				if err != nil {
 					t.Errorf("MCPConfig validation should pass: %v", err)
 				}
+			}
+		})
+	}
+}
+
+func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
+	tests := []struct {
+		name           string
+		envVars        map[string]string
+		flagValues     map[string]string
+		expectedConfig func(*Config)
+	}{
+		{
+			name: "QURL_OPENAPI environment variable",
+			envVars: map[string]string{
+				"QURL_OPENAPI": "https://api.example.com/openapi.json",
+			},
+			expectedConfig: func(c *Config) {
+				if c.OpenAPIURL != "https://api.example.com/openapi.json" {
+					t.Errorf("OpenAPIURL: got %q, expected %q", c.OpenAPIURL, "https://api.example.com/openapi.json")
+				}
+			},
+		},
+		{
+			name: "QURL_SERVER environment variable",
+			envVars: map[string]string{
+				"QURL_SERVER": "https://api.example.com",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Server != "https://api.example.com" {
+					t.Errorf("Server: got %q, expected %q", c.Server, "https://api.example.com")
+				}
+			},
+		},
+		{
+			name: "QURL_LOG_LEVEL environment variable",
+			envVars: map[string]string{
+				"QURL_LOG_LEVEL": "debug",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Logger.Level != "debug" {
+					t.Errorf("Logger.Level: got %q, expected %q", c.Logger.Level, "debug")
+				}
+			},
+		},
+		{
+			name: "flag overrides QURL_OPENAPI",
+			envVars: map[string]string{
+				"QURL_OPENAPI": "https://env.example.com/openapi.json",
+			},
+			flagValues: map[string]string{
+				"openapi": "https://flag.example.com/openapi.json",
+			},
+			expectedConfig: func(c *Config) {
+				if c.OpenAPIURL != "https://flag.example.com/openapi.json" {
+					t.Errorf("OpenAPIURL: got %q, expected flag value %q", c.OpenAPIURL, "https://flag.example.com/openapi.json")
+				}
+			},
+		},
+		{
+			name: "flag overrides QURL_SERVER",
+			envVars: map[string]string{
+				"QURL_SERVER": "https://env.example.com",
+			},
+			flagValues: map[string]string{
+				"server": "https://flag.example.com",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Server != "https://flag.example.com" {
+					t.Errorf("Server: got %q, expected flag value %q", c.Server, "https://flag.example.com")
+				}
+			},
+		},
+		{
+			name: "all environment variables together",
+			envVars: map[string]string{
+				"QURL_OPENAPI": "https://api.example.com/openapi.json",
+				"QURL_SERVER": "https://api.example.com",
+				"QURL_LOG_LEVEL": "info",
+			},
+			expectedConfig: func(c *Config) {
+				if c.OpenAPIURL != "https://api.example.com/openapi.json" {
+					t.Errorf("OpenAPIURL: got %q, expected %q", c.OpenAPIURL, "https://api.example.com/openapi.json")
+				}
+				if c.Server != "https://api.example.com" {
+					t.Errorf("Server: got %q, expected %q", c.Server, "https://api.example.com")
+				}
+				if c.Logger.Level != "info" {
+					t.Errorf("Logger.Level: got %q, expected %q", c.Logger.Level, "info")
+				}
+			},
+		},
+		{
+			name: "OPENAPI_URL fallback when QURL_OPENAPI not set",
+			envVars: map[string]string{
+				"OPENAPI_URL": "https://fallback.example.com/openapi.json",
+			},
+			expectedConfig: func(c *Config) {
+				if c.OpenAPIURL != "https://fallback.example.com/openapi.json" {
+					t.Errorf("OpenAPIURL: got %q, expected %q", c.OpenAPIURL, "https://fallback.example.com/openapi.json")
+				}
+			},
+		},
+		{
+			name: "QURL_OPENAPI takes precedence over OPENAPI_URL",
+			envVars: map[string]string{
+				"QURL_OPENAPI": "https://preferred.example.com/openapi.json",
+				"OPENAPI_URL": "https://fallback.example.com/openapi.json",
+			},
+			expectedConfig: func(c *Config) {
+				if c.OpenAPIURL != "https://preferred.example.com/openapi.json" {
+					t.Errorf("OpenAPIURL: got %q, expected QURL_OPENAPI value %q", c.OpenAPIURL, "https://preferred.example.com/openapi.json")
+				}
+			},
+		},
+		{
+			name: "QURL_LOG_FORMAT json",
+			envVars: map[string]string{
+				"QURL_LOG_FORMAT": "json",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Logger.Format != "json" {
+					t.Errorf("Logger.Format: got %q, expected %q", c.Logger.Format, "json")
+				}
+			},
+		},
+		{
+			name: "QURL_LOG_FORMAT pretty",
+			envVars: map[string]string{
+				"QURL_LOG_FORMAT": "pretty",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Logger.Format != "pretty" {
+					t.Errorf("Logger.Format: got %q, expected %q", c.Logger.Format, "pretty")
+				}
+			},
+		},
+		{
+			name: "QURL_LOG_FORMAT invalid value ignored",
+			envVars: map[string]string{
+				"QURL_LOG_FORMAT": "invalid",
+			},
+			expectedConfig: func(c *Config) {
+				if c.Logger.Format != "pretty" {
+					t.Errorf("Logger.Format: got %q, expected default %q when invalid value provided", c.Logger.Format, "pretty")
+				}
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Clear environment
+			os.Unsetenv("QURL_OPENAPI")
+			os.Unsetenv("OPENAPI_URL")
+			os.Unsetenv("QURL_SERVER")
+			os.Unsetenv("QURL_LOG_LEVEL")
+			os.Unsetenv("QURL_LOG_FORMAT")
+
+			// Set test environment variables
+			for key, value := range tt.envVars {
+				os.Setenv(key, value)
+			}
+
+			// Create flag set with defaults
+			flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+			var cfg Config
+
+			// Define flags as they are in main.go
+			flags.StringVar(&cfg.OpenAPIURL, "openapi", "", "OpenAPI specification URL")
+			flags.StringVar(&cfg.Server, "server", "", "Server URL or index")
+			flags.StringVar(&cfg.Logger.Level, "log-level", "warn", "Log level")
+			flags.StringSliceVar(&cfg.Methods, "request", []string{"GET"}, "HTTP method")
+			flags.StringSliceVar(&cfg.Headers, "header", nil, "Custom headers")
+			flags.StringSliceVar(&cfg.QueryParams, "query", nil, "Query parameters")
+			flags.StringVar(&cfg.Data, "data", "", "Request body data")
+			flags.BoolVar(&cfg.Verbose, "verbose", false, "Verbose output")
+			flags.BoolVar(&cfg.IncludeHeaders, "include", false, "Include headers")
+			flags.BoolVar(&cfg.ShowDocs, "docs", false, "Show docs")
+			flags.BoolVar(&cfg.SigV4Enabled, "aws-sigv4", false, "Sign with SigV4")
+			flags.StringVar(&cfg.SigV4Service, "aws-service", "execute-api", "AWS service")
+			// log-pretty flag removed - now controlled by QURL_LOG_FORMAT env var
+
+			// Set flag values from test
+			for flag, value := range tt.flagValues {
+				flags.Set(flag, value)
+			}
+
+			// Load config
+			config, err := LoadFromFlags(flags)
+			if err != nil {
+				t.Fatalf("LoadFromFlags failed: %v", err)
+			}
+
+			// Check expectations
+			tt.expectedConfig(config)
+
+			// Clean up
+			for key := range tt.envVars {
+				os.Unsetenv(key)
 			}
 		})
 	}

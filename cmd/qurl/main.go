@@ -29,32 +29,8 @@ func execute() error {
 
 	rootCmd := &cobra.Command{
 		Use:   "qurl [path]",
-		Short: "A modern CLI for testing OpenAPI endpoints",
-		Long: `qurl is a command-line tool for interacting with OpenAPI-defined REST APIs.
-It can automatically discover endpoints, validate requests, and provide
-documentation - all from your OpenAPI specification.
-
-Examples:
-  # Make a GET request
-  qurl /api/users
-
-  # Show OpenAPI documentation
-  qurl --docs /api/users
-
-  # Make a POST request with data
-  qurl -X POST -d '{"name":"Alice"}' /api/users
-
-  # Show documentation for multiple methods
-  qurl -X GET -X POST -X PUT --docs /api/users
-
-  # Start MCP server for LLM integration (unconstrained)
-  qurl --mcp
-
-  # Start MCP server constrained to GET requests under /api/
-  qurl -X GET /api/ --mcp
-
-  # Start MCP server with multiple allowed methods
-  qurl -X GET -X POST -X PUT /api/users --mcp`,
+		Short: "OpenAPI v3 REST client and MCP server",
+		Long: "OpenAPI v3 REST client and MCP server",
 		Args:          cobra.MaximumNArgs(1),
 		SilenceErrors: true,
 		SilenceUsage:  true,
@@ -122,7 +98,7 @@ Examples:
 			// Initialize logger
 			loggerConfig := &qurlogger.Config{
 				Level:      cfg.Logger.Level,
-				Pretty:     cfg.Logger.Pretty,
+				Format:     cfg.Logger.Format,
 				WithCaller: false,
 				Output:     os.Stderr,
 				TimeFormat: time.RFC3339,
@@ -170,8 +146,8 @@ Examples:
 	flags.BoolVar(&mcpMode, "mcp", false, "Start MCP server for LLM integration")
 
 	// OpenAPI and server configuration
-	flags.StringVar(&cfg.OpenAPIURL, "openapi", "", "OpenAPI specification URL")
-	flags.StringVar(&cfg.Server, "server", "", "Server URL or index (0,1,2...) from OpenAPI spec")
+	flags.StringVar(&cfg.OpenAPIURL, "openapi", "", "OpenAPI spec URL (env: QURL_OPENAPI)")
+	flags.StringVar(&cfg.Server, "server", "", "Server URL or index from spec (env: QURL_SERVER)")
 
 	// HTTP configuration
 	flags.StringSliceVarP(&cfg.Methods, "request", "X", []string{"GET"}, "HTTP method to use (can be used multiple times)")
@@ -189,8 +165,7 @@ Examples:
 	flags.StringVar(&cfg.SigV4Service, "aws-service", "execute-api", "AWS service name for SigV4 signing")
 
 	// Logging configuration
-	flags.StringVar(&cfg.Logger.Level, "log-level", "warn", "Log level (trace, debug, info, warn, error)")
-	flags.BoolVar(&cfg.Logger.Pretty, "log-pretty", true, "Enable pretty logging output")
+	flags.StringVar(&cfg.Logger.Level, "log-level", "warn", "Log level: trace|debug|info|warn|error (env: QURL_LOG_LEVEL)")
 
 	// Environment variable bindings
 	rootCmd.MarkPersistentFlagFilename("openapi")

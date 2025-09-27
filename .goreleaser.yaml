@@ -5,11 +5,13 @@ before:
     - go mod tidy
 
 builds:
-  - env:
+  - id: qurl
+    env:
       - CGO_ENABLED=0
     goos:
       - linux
       - darwin
+      - windows
     goarch:
       - amd64
       - arm64
@@ -22,36 +24,37 @@ builds:
       - -X main.version={{.Version}}
       - -X main.commit={{.Commit}}
       - -X main.date={{.Date}}
+    mod_timestamp: '{{ .CommitTimestamp }}'
 
 archives:
-  - format: tar.gz
+  - id: default
+    formats:
+      - tar.gz
+      - zip
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+      - goos: linux
+        formats:
+          - tar.gz
+      - goos: darwin
+        formats:
+          - tar.gz
     # this name template makes the OS and Arch compatible with the results of `uname`.
     name_template: >-
       {{ .ProjectName }}_
-      {{- .Os }}_
+      {{- title .Os }}_
       {{- if eq .Arch "amd64" }}x86_64
       {{- else if eq .Arch "386" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    files:
+      - README.md
 
-homebrew_casks:
-  - name: qurl
-    repository:
-      owner: bkeane
-      name: taps
-      token: "{{ .Env.GITHUB_PERSONAL_AUTH_TOKEN }}"
-    directory: Casks
-    homepage: "https://github.com/bkeane/qurl"
-    description: "URL query and manipulation tool"
-    license: "MIT"
-    binary: qurl
-    url:
-      verified: github.com/bkeane/qurl
-    commit_author:
-      name: goreleaserbot
-      email: bot@goreleaser.com
-    commit_msg_template: "Brew cask update for {{ .ProjectName }} version {{ .Tag }}"
-    skip_upload: auto
+checksum:
+  name_template: '{{ .ProjectName }}_checksums.txt'
+  algorithm: sha256
 
 changelog:
   sort: asc
@@ -67,9 +70,25 @@ release:
     owner: bkeane
     name: qurl
   prerelease: auto
+  draft: false
+  name_template: "{{ .Tag }}"
   footer: |
     ---
 
-    **Full Changelog**: https://github.com/bkeane/qurl/compare/{{ .PreviousTag }}...{{ .Tag }}
+    ## Installation
 
-    Released by [GoReleaser](https://github.com/goreleaser/goreleaser).
+    ### Quick install (coming soon)
+    ```bash
+    # Mac/Linux
+    curl -sS https://webi.sh/qurl | sh
+
+    # Windows
+    curl.exe -A MS https://webi.ms/qurl | powershell
+    ```
+
+    ### Manual install
+    Download the appropriate archive below and extract the binary to your PATH.
+
+    ---
+
+    **Full Changelog**: https://github.com/bkeane/qurl/compare/{{ .PreviousTag }}...{{ .Tag }}

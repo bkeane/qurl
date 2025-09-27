@@ -1,15 +1,27 @@
 # qurl
 
-A curl-like client and MCP server for the OpenAPI v3 specification.
+OpenAPI v3 REST client and MCP server - a curl-like CLI for OpenAPI-documented APIs.
+
+## Install
+
+#### Manual: 
+Download pre-built binaries from [releases](https://github.com/bkeane/qurl/releases).
+
+#### Linux/macOS:
+```bash
+curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash
+```
+
+#### Windows:
+```powershell
+iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 | iex
+```
 
 ## Quick Start
 
 ```bash
-# Install
-go install github.com/brendan.keane/qurl/cmd/qurl@latest
-
 # Try it with httpbin
-export OPENAPI_URL=https://httpbin.org/openapi.json
+export QURL_OPENAPI=https://httpbin.org/openapi.json
 qurl /get
 
 # Explore what's available

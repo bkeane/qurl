@@ -1,5 +1,8 @@
 .claude
 
+# GoReleaser dist folder
+dist/
+
 # Go binaries
 /qurl
 *.exe

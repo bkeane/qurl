@@ -12,7 +12,7 @@ import (
 // Config holds logger configuration
 type Config struct {
 	Level       string
-	Pretty      bool
+	Format      string // "pretty" or "json"
 	WithCaller  bool
 	Output      io.Writer
 	TimeFormat  string
@@ -22,7 +22,7 @@ type Config struct {
 func DefaultConfig() *Config {
 	return &Config{
 		Level:      "info",
-		Pretty:     true,
+		Format:     "pretty",
 		WithCaller: false,
 		Output:     os.Stderr,
 		TimeFormat: time.RFC3339,
@@ -41,7 +41,7 @@ func InitLogger(config *Config) zerolog.Logger {
 
 	// Configure output
 	var output io.Writer = config.Output
-	if config.Pretty {
+	if config.Format == "pretty" {
 		output = &zerolog.ConsoleWriter{
 			Out:        config.Output,
 			TimeFormat: "15:04:05",

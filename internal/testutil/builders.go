@@ -37,7 +37,7 @@ func NewConfigBuilder() *ConfigBuilder {
 			},
 			Logger: config.LoggerConfig{
 				Level:      "warn",
-				Pretty:     true,
+				Format:     "pretty",
 				WithCaller: false,
 			},
 		},
