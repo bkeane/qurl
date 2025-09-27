@@ -174,7 +174,7 @@ func (b *ConfigBuilder) Build() *config.Config {
 		},
 		Logger: config.LoggerConfig{
 			Level:      b.config.Logger.Level,
-			Pretty:     b.config.Logger.Pretty,
+			Format:     b.config.Logger.Format,
 			WithCaller: b.config.Logger.WithCaller,
 		},
 	}
