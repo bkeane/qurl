@@ -2,11 +2,14 @@
 set -e
 
 # qurl installer script for Linux and macOS
-# Usage: curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash
+# Usage:
+#   curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash
+#   curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash -s v0.1.0
 
 GITHUB_REPO="bkeane/qurl"
 INSTALL_DIR="$HOME/.local/bin"
 BINARY_NAME="qurl"
+VERSION="${1:-latest}"  # Use first argument or default to latest
 
 # Colors for output
 RED='\033[0;31m'
@@ -46,16 +49,20 @@ get_latest_version() {
 # Download and install qurl
 install_qurl() {
     local platform=$(detect_platform)
-    local version=$(get_latest_version)
+    local version_to_install="$VERSION"
 
-    if [ -z "$version" ]; then
-        echo -e "${RED}Failed to get latest version${NC}" >&2
-        exit 1
+    # If version is "latest", fetch the actual latest version
+    if [ "$version_to_install" = "latest" ]; then
+        version_to_install=$(get_latest_version)
+        if [ -z "$version_to_install" ]; then
+            echo -e "${RED}Failed to get latest version${NC}" >&2
+            exit 1
+        fi
     fi
 
-    echo "Installing qurl $version for $platform..."
+    echo "Installing qurl $version_to_install for $platform..."
 
-    local download_url="https://github.com/$GITHUB_REPO/releases/download/$version/qurl_${platform}.tar.gz"
+    local download_url="https://github.com/$GITHUB_REPO/releases/download/$version_to_install/qurl_${platform}.tar.gz"
     local temp_dir=$(mktemp -d)
 
     # Download and extract

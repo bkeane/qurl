@@ -77,16 +77,22 @@ release:
 
     ## Installation
 
-    ### Quick install (coming soon)
+    **Mac/Linux:**
     ```bash
-    # Mac/Linux
-    curl -sS https://webi.sh/qurl | sh
-
-    # Windows
-    curl.exe -A MS https://webi.ms/qurl | powershell
+    curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash
     ```
 
-    ### Manual install
+    **Windows:**
+    ```powershell
+    iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 | iex
+    ```
+
+    **Install specific version:**
+    ```bash
+    curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash -s v{{ .Version }}
+    ```
+
+    **Manual install:**
     Download the appropriate archive below and extract the binary to your PATH.
 
     ---

@@ -1,82 +1,95 @@
 # qurl
 
-OpenAPI v3 REST client and MCP server - a curl-like CLI for OpenAPI-documented APIs.
+OpenAPI v3 REST client and MCP server.
 
 ## Install
 
-#### Manual: 
-Download pre-built binaries from [releases](https://github.com/bkeane/qurl/releases).
-
-#### Linux/macOS:
+**Linux/macOS:**
 ```bash
 curl -sS https://raw.githubusercontent.com/bkeane/qurl/main/install.sh | bash
 ```
 
-#### Windows:
+**Windows:**
 ```powershell
 iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 | iex
 ```
 
+**Manual:** Download from [releases](https://github.com/bkeane/qurl/releases).
+
 ## Quick Start
 
 ```bash
-# Try it with httpbin
-export QURL_OPENAPI=https://httpbin.org/openapi.json
-qurl /get
+# Try it with the Swagger Petstore
+export QURL_OPENAPI=https://petstore3.swagger.io/api/v3/openapi.json
 
-# Explore what's available
 qurl --docs
-
-# Make a request
-qurl /anything -d '{"hello":"world"}'
 ```
+
+## 🔍 Explore
+
+Use `--docs` to browse your API. The same filters that work for requests also filter documentation:
+
+```bash
+qurl --docs                          # All endpoints
+qurl --docs /pet/                    # Endpoints under /pet
+qurl --docs -X GET /pet              # Method documentation
+qurl --docs -X GET -X DELETE         # All GET and DELETE endpoints
+qurl --docs -X POST /pet/            # POST endpoints under /pet
+```
+
+## 🚀 Execute
+
+Make requests with curl-like syntax, enhanced by OpenAPI:
+
+```bash
+qurl /pet/findByStatus --query status=available  # GET with query param
+qurl -X DELETE /pet/123                          # Delete pet by ID
+qurl -v /store/inventory                         # Verbose output
+```
+
+Tab completion knows your API:
+```bash
+qurl <TAB>                              # Complete paths: /pet, /store, /user
+qurl -X <TAB>                           # Complete methods: GET, POST, PUT, DELETE
+qurl --server <TAB>                     # Complete servers.
+qurl /pet/findByStatus --query sta<TAB> # Complete params: status=
+```
+
+## 🔐 AWS
+
+Native AWS service integration:
+
+```bash
+# Direct Lambda invocation
+export QURL_OPENAPI=lambda://my-function/openapi.json
+qurl /endpoint
+
+# API Gateway with SigV4
+qurl --aws-sigv4 /pets
+
+# Any AWS service with SigV4
+AWS_REGION=us-east-1 qurl --aws-sigv4 --aws-service sts \
+  -X POST -d "Action=GetCallerIdentity&Version=2011-06-15" \
+  https://sts.amazonaws.com/
+```
+
+## 🤖 MCP
+
+Start an MCP server for LLM integration. Request filters become safety constraints:
+
+```bash
+qurl --mcp                      # Full API access
+qurl --mcp -X GET               # Read-only access
+qurl --mcp /pet/                # Only /pet endpoints
+qurl --mcp -X GET -X POST /pet  # Only GET/POST on /pet
+```
+
+Use with Claude Desktop, Cline, or any MCP client.
 
 ## Configuration
 
 ```bash
-export QURL_OPENAPI=https://api.example.com/openapi.json
-```
-
-## Features
-
-### Interactive Documentation
-```bash
-qurl --docs                   # Show all routes
-qurl --docs /users            # Show /user method
-qurl --docs /users/           # Show routes under /users/
-qurl --docs -X GET -X DELETE  # Show all GET/DELETE routes
-```
-
-### Curl-like arguments
-```bash
-qurl -X POST -H "Auth: ${TOKEN}" -d '{"name":"test"}' /users
-qurl -v /debug           # Verbose output
-```
-
-### Tab Completion
-```bash
-qurl <TAB>                # Complete paths
-qurl -X <TAB>             # Complete methods
-qurl /users --param <TAB> # Complete parameters
-qurl --server <TAB>       # Complete servers
-```
-
-## Integrations
-
-### AWS API Gateway / AWS Services
-```bash
-qurl --sig-v4 /users     # Sign request with AWS Signature V4
-```
-
-### AWS Lambda
-```bash
-export QURL_OPENAPI=lambda://my-function/openapi.json
-qurl /path               # Invokes Lambda directly
-```
-
-### LLM/MCP Mode
-```bash
-qurl --mcp                                       # Full API access for LLMs
-qurl --mcp -X GET /users/                        # Restrict to GET on /users/* paths
-qurl --mcp -H "Authorization: Bearer ${TOKEN}"   # Include header in all LLM requests
+export QURL_OPENAPI=https://api.example.com/openapi.json  # OpenAPI spec URL
+export QURL_SERVER=https://staging.api.com                # Override server
+export QURL_LOG_LEVEL=debug                               # Log verbosity
 ```

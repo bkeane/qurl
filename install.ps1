@@ -1,5 +1,11 @@
 # qurl installer script for Windows
-# Usage: iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 | iex
+# Usage:
+#   iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 | iex
+#   iwr -useb https://raw.githubusercontent.com/bkeane/qurl/main/install.ps1 -OutFile install.ps1; .\install.ps1 v0.1.0
+
+param(
+    [string]$Version = "latest"
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -35,11 +41,17 @@ function Get-LatestVersion {
 # Download and install qurl
 function Install-Qurl {
     $arch = Get-Architecture
-    $version = Get-LatestVersion
 
-    Write-Host "Installing qurl $version for Windows $arch..." -ForegroundColor Cyan
+    # Use provided version or get latest
+    if ($Version -eq "latest") {
+        $versionToInstall = Get-LatestVersion
+    } else {
+        $versionToInstall = $Version
+    }
 
-    $downloadUrl = "https://github.com/$GITHUB_REPO/releases/download/$version/qurl_Windows_$arch.zip"
+    Write-Host "Installing qurl $versionToInstall for Windows $arch..." -ForegroundColor Cyan
+
+    $downloadUrl = "https://github.com/$GITHUB_REPO/releases/download/$versionToInstall/qurl_Windows_$arch.zip"
     $tempZip = "$env:TEMP\qurl.zip"
     $tempDir = "$env:TEMP\qurl-extract"
 
