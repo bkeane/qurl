@@ -207,6 +207,46 @@ func execute() error {
 		return commonMethods, cobra.ShellCompDirectiveNoFileComp
 	})
 
+	// Register completion function for server flag
+	rootCmd.RegisterFlagCompletionFunc("server", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
+		// Get OpenAPI URL from environment or flags
+		openAPIURL := os.Getenv("QURL_OPENAPI")
+		if openAPIURL == "" {
+			openAPIURL = os.Getenv("OPENAPI_URL")
+		}
+		if flagVal, _ := cmd.Flags().GetString("openapi"); flagVal != "" {
+			openAPIURL = flagVal
+		}
+
+		// If no OpenAPI spec available, no completions
+		if openAPIURL == "" {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// Try to get servers from OpenAPI spec
+		httpClient, err := qurlhttp.NewClient()
+		if err != nil {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		viewer := openapi.NewViewer(httpClient, openAPIURL)
+
+		servers, err := viewer.GetServers()
+		if err != nil || len(servers) == 0 {
+			return nil, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// Return server URLs as completion options
+		var completions []string
+		for _, server := range servers {
+			if server.URL != "" {
+				completions = append(completions, server.URL)
+			}
+		}
+
+		return completions, cobra.ShellCompDirectiveNoFileComp
+	})
+
 	// Add completion command (keeping this as the only subcommand for shell completions)
 	rootCmd.AddCommand(&cobra.Command{
 		Use:   "completion [bash|zsh|fish|powershell]",

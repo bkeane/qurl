@@ -30,11 +30,11 @@ qurl --docs
 Use `--docs` to browse your API. The same filters that work for requests also filter documentation:
 
 ```bash
-qurl --docs                          # All endpoints
-qurl --docs /pet/                    # Endpoints under /pet
-qurl --docs -X GET /pet              # Method documentation
-qurl --docs -X GET -X DELETE         # All GET and DELETE endpoints
-qurl --docs -X POST /pet/            # POST endpoints under /pet
+qurl --docs                  # All endpoints
+qurl --docs /pet/            # Endpoints under /pet
+qurl --docs -X GET /pet      # Method documentation
+qurl --docs -X GET -X DELETE # All GET and DELETE endpoints
+qurl --docs -X POST /pet/    # POST endpoints under /pet
 ```
 
 ## 🚀 Execute
@@ -42,9 +42,9 @@ qurl --docs -X POST /pet/            # POST endpoints under /pet
 Make requests with curl-like syntax, enhanced by OpenAPI:
 
 ```bash
-qurl /pet/findByStatus --query status=available  # GET with query param
-qurl -X DELETE /pet/123                          # Delete pet by ID
-qurl -v /store/inventory                         # Verbose output
+qurl /pet/findByStatus --query status=available # GET with query param
+qurl -X DELETE /pet/123                         # Delete pet by ID
+qurl -v /store/inventory                        # Verbose output
 ```
 
 Tab completion knows your API:
@@ -78,19 +78,37 @@ AWS_REGION=us-east-1 qurl --aws-sigv4 --aws-service sts \
 Start an MCP server for LLM integration. Request filters become safety constraints:
 
 ```bash
-qurl --mcp                      # Full API access
-qurl --mcp -X GET               # Read-only access
-qurl --mcp /pet/                # Only /pet endpoints
-qurl --mcp -X GET -X POST /pet  # Only GET/POST on /pet
-qurl --mcp -H "Authorization: Bearer $TOKEN"  # Include auth in all requests
+qurl --mcp                                   # Full API access
+qurl --mcp -X GET                            # Read-only access
+qurl --mcp /pet/                             # Only /pet endpoints
+qurl --mcp -X GET -X POST /pet               # Only GET/POST on /pet
+qurl --mcp -H "Authorization: Bearer $TOKEN" # Include auth in all requests
 ```
 
 Use with Claude Desktop, Cline, or any MCP client.
 
+```json
+{
+   "mcpServers":{
+      "petstore":{
+         "command":"qurl",
+         "args":[
+            "--mcp",
+            "-X", "GET",
+            "-H", "Authorization: Bearer $TOKEN"
+         ],
+         "env":{
+            "QURL_OPENAPI":"https://petstore3.swagger.io/api/v3/openapi.json"
+         }
+      }
+   }
+}
+```
+
 ## Configuration
 
 ```bash
-export QURL_OPENAPI=https://api.example.com/openapi.json  # OpenAPI spec URL
-export QURL_SERVER=https://staging.api.com                # Override server
-export QURL_LOG_LEVEL=debug                               # Log verbosity
+export QURL_OPENAPI=https://api.example.com/openapi.json # OpenAPI spec URL
+export QURL_SERVER=https://staging.api.com               # Override server
+export QURL_LOG_LEVEL=debug                              # Log verbosity
 ```
