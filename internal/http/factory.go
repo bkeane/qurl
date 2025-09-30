@@ -33,7 +33,9 @@ func (f *ClientFactory) CreateExecutor(cfg *config.Config) (HTTPExecutor, error)
 	// Create OpenAPI viewer if URL is provided
 	var viewer OpenAPIProvider
 	if cfg.OpenAPIURL != "" {
-		openapiViewer := openapi.NewViewer(httpClient, cfg.OpenAPIURL)
+		// Create authenticated HTTP client for OpenAPI spec fetching
+		authClient := NewAuthenticatedHTTPClient(cfg, f.logger)
+		openapiViewer := openapi.NewViewer(authClient, cfg.OpenAPIURL)
 		viewer = NewOpenAPIAdapter(openapiViewer)
 	}
 
@@ -74,20 +76,3 @@ func (f *ClientFactory) CreateExecutorWithCustomClient(
 	)
 }
 
-// Global factory instance - this replaces all the scattered client creation
-var defaultFactory *ClientFactory
-
-// InitializeFactory sets up the global factory with a logger
-// This should be called once at application startup
-func InitializeFactory(logger zerolog.Logger) {
-	defaultFactory = NewClientFactory(logger)
-}
-
-// CreateExecutor is a convenience function that uses the global factory
-// This provides a clean migration path from the existing scattered patterns
-func CreateExecutor(cfg *config.Config) (HTTPExecutor, error) {
-	if defaultFactory == nil {
-		return nil, errors.New(errors.ErrorTypeConfig, "HTTP client factory not initialized")
-	}
-	return defaultFactory.CreateExecutor(cfg)
-}

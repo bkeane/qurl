@@ -128,6 +128,20 @@ func (d *Displayer) RenderIndex(paths []PathInfo) string {
 		}
 	}
 
+	// Show tags if available
+	tagsInfo := d.renderTags()
+	if tagsInfo != "" {
+		output.WriteString(tagsInfo)
+		output.WriteString("\n")
+	}
+
+	// Show servers if available
+	serversInfo := d.renderServers()
+	if serversInfo != "" {
+		output.WriteString(serversInfo)
+		output.WriteString("\n")
+	}
+
 	// Show authentication information if available
 	authInfo := d.renderAuthInfo()
 	if authInfo != "" {
@@ -381,6 +395,52 @@ func getStatusStyle(code string) lipgloss.Style {
 	}
 
 	return codeStyle
+}
+
+func (d *Displayer) renderServers() string {
+	var output strings.Builder
+
+	servers, err := d.parser.GetServers()
+	if err != nil || len(servers) == 0 {
+		return ""
+	}
+
+	output.WriteString(sectionStyle.Render("Servers"))
+	output.WriteString("\n\n")
+
+	for i, server := range servers {
+		if server == nil {
+			continue
+		}
+
+		// Show server number for easy reference with --server flag
+		output.WriteString(fmt.Sprintf("  [%d] ", i))
+		output.WriteString(codeStyle.Render(server.URL))
+
+		if server.Description != "" {
+			output.WriteString(" - ")
+			output.WriteString(summaryStyle.Render(server.Description))
+		}
+
+		// Show server variables if present
+		if server.Variables != nil {
+			hasVars := false
+			for name, variable := range server.Variables.FromOldest() {
+				if !hasVars {
+					output.WriteString("\n      Variables: ")
+					hasVars = true
+				}
+				if variable == nil {
+					continue
+				}
+				output.WriteString(fmt.Sprintf("{%s=%s} ", name, variable.Default))
+			}
+		}
+
+		output.WriteString("\n")
+	}
+
+	return output.String()
 }
 
 func (d *Displayer) renderAuthInfo() string {
@@ -637,4 +697,26 @@ func (d *Displayer) getExampleValue(schema *base.Schema) string {
 	}
 
 	return "null"
+}
+
+func (d *Displayer) renderTags() string {
+	var output strings.Builder
+
+	tags, err := d.parser.GetTags()
+	if err != nil || len(tags) == 0 {
+		return ""
+	}
+
+	for _, tag := range tags {
+		if tag == nil {
+			continue
+		}
+
+		if tag.Description != "" {
+			output.WriteString(summaryStyle.Render(tag.Description))
+			output.WriteString("\n")
+		}
+	}
+
+	return output.String()
 }

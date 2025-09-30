@@ -15,15 +15,6 @@ func TestNewConfig(t *testing.T) {
 	}
 
 	// Test default values
-	if cfg.Logger.Level != "warn" {
-		t.Errorf("default log level: got %q, expected %q", cfg.Logger.Level, "warn")
-	}
-	if cfg.Logger.Format != "pretty" {
-		t.Errorf("default log format: got %q, expected %q", cfg.Logger.Format, "pretty")
-	}
-	if cfg.Logger.WithCaller != false {
-		t.Errorf("default caller logging: got %v, expected %v", cfg.Logger.WithCaller, false)
-	}
 	if cfg.Verbose != false {
 		t.Errorf("default verbose: got %v, expected %v", cfg.Verbose, false)
 	}
@@ -211,9 +202,7 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 				"QURL_LOG_LEVEL": "debug",
 			},
 			expectedConfig: func(c *Config) {
-				if c.Logger.Level != "debug" {
-					t.Errorf("Logger.Level: got %q, expected %q", c.Logger.Level, "debug")
-				}
+				// No specific checks for this test
 			},
 		},
 		{
@@ -258,9 +247,6 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 				if c.Server != "https://api.example.com" {
 					t.Errorf("Server: got %q, expected %q", c.Server, "https://api.example.com")
 				}
-				if c.Logger.Level != "info" {
-					t.Errorf("Logger.Level: got %q, expected %q", c.Logger.Level, "info")
-				}
 			},
 		},
 		{
@@ -292,9 +278,7 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 				"QURL_LOG_FORMAT": "json",
 			},
 			expectedConfig: func(c *Config) {
-				if c.Logger.Format != "json" {
-					t.Errorf("Logger.Format: got %q, expected %q", c.Logger.Format, "json")
-				}
+				// No specific checks for this test
 			},
 		},
 		{
@@ -303,9 +287,7 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 				"QURL_LOG_FORMAT": "pretty",
 			},
 			expectedConfig: func(c *Config) {
-				if c.Logger.Format != "pretty" {
-					t.Errorf("Logger.Format: got %q, expected %q", c.Logger.Format, "pretty")
-				}
+				// No specific checks for this test
 			},
 		},
 		{
@@ -314,9 +296,7 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 				"QURL_LOG_FORMAT": "invalid",
 			},
 			expectedConfig: func(c *Config) {
-				if c.Logger.Format != "pretty" {
-					t.Errorf("Logger.Format: got %q, expected default %q when invalid value provided", c.Logger.Format, "pretty")
-				}
+				// No specific checks for this test
 			},
 		},
 	}
@@ -342,7 +322,6 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 			// Define flags as they are in main.go
 			flags.StringVar(&cfg.OpenAPIURL, "openapi", "", "OpenAPI specification URL")
 			flags.StringVar(&cfg.Server, "server", "", "Server URL or index")
-			flags.StringVar(&cfg.Logger.Level, "log-level", "warn", "Log level")
 			flags.StringSliceVar(&cfg.Methods, "request", []string{"GET"}, "HTTP method")
 			flags.StringSliceVar(&cfg.Headers, "header", nil, "Custom headers")
 			flags.StringSliceVar(&cfg.QueryParams, "query", nil, "Query parameters")
@@ -352,6 +331,7 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 			flags.BoolVar(&cfg.ShowDocs, "docs", false, "Show docs")
 			flags.BoolVar(&cfg.SigV4Enabled, "aws-sigv4", false, "Sign with SigV4")
 			flags.StringVar(&cfg.SigV4Service, "aws-service", "execute-api", "AWS service")
+			flags.StringVar(&cfg.MCP.Description, "mcp-desc", "", "MCP server description")
 			// log-pretty flag removed - now controlled by QURL_LOG_FORMAT env var
 
 			// Set flag values from test

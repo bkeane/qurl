@@ -43,7 +43,6 @@ func (h *MCPHandler) Execute(cmd *cobra.Command, args []string) error {
 
 	// Validate that we have an OpenAPI URL
 	if cfg.OpenAPIURL == "" {
-		h.logger.Error().Msg("OpenAPI URL is required for MCP server")
 		return errors.New(errors.ErrorTypeConfig, "OpenAPI URL is required for MCP server").
 			WithContext("suggestion", "use --openapi flag or set QURL_OPENAPI environment variable")
 	}

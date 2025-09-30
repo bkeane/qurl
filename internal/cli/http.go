@@ -60,10 +60,11 @@ func (h *HTTPHandler) Execute(cmd *cobra.Command, args []string) error {
 		Bool("docs", cfg.ShowDocs).
 		Msg("processing HTTP command")
 
-	// Create HTTP client
-	client, err := http.NewClient(h.logger, cfg)
+	// Create HTTP executor using factory pattern
+	factory := http.NewClientFactory(h.logger)
+	executor, err := factory.CreateExecutor(cfg)
 	if err != nil {
-		h.logger.Error().Err(err).Msg("failed to create HTTP client")
+		h.logger.Error().Err(err).Msg("failed to create HTTP executor")
 		return err
 	}
 
@@ -91,17 +92,16 @@ func (h *HTTPHandler) Execute(cmd *cobra.Command, args []string) error {
 			}
 		}
 
-		return client.ShowDocs(ctx, path, docsMethod)
+		return executor.ShowDocs(ctx, path, docsMethod)
 	}
 
 	// Validate that we have a path for HTTP requests
 	if path == "" {
-		h.logger.Warn().Msg("no path provided for HTTP request")
 		return errors.New(errors.ErrorTypeValidation, "path is required for HTTP requests").
 			WithContext("suggestion", "provide a URL or path as an argument")
 	}
 
 	// Execute HTTP request
 	h.logger.Debug().Msg("executing HTTP request")
-	return client.Execute(ctx, path)
+	return executor.Execute(ctx, path)
 }

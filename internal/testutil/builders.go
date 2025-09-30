@@ -35,11 +35,6 @@ func NewConfigBuilder() *ConfigBuilder {
 				ServerURL:      "",
 				OpenAPIURL:     "",
 			},
-			Logger: config.LoggerConfig{
-				Level:      "warn",
-				Format:     "pretty",
-				WithCaller: false,
-			},
 		},
 	}
 }
@@ -143,7 +138,6 @@ func (b *ConfigBuilder) WithMCPPathPrefix(prefix string) *ConfigBuilder {
 
 // WithLogLevel sets the logging level
 func (b *ConfigBuilder) WithLogLevel(level string) *ConfigBuilder {
-	b.config.Logger.Level = level
 	return b
 }
 
@@ -171,11 +165,6 @@ func (b *ConfigBuilder) Build() *config.Config {
 			SigV4Service:   b.config.MCP.SigV4Service,
 			ServerURL:      b.config.MCP.ServerURL,
 			OpenAPIURL:     b.config.MCP.OpenAPIURL,
-		},
-		Logger: config.LoggerConfig{
-			Level:      b.config.Logger.Level,
-			Format:     b.config.Logger.Format,
-			WithCaller: b.config.Logger.WithCaller,
 		},
 	}
 

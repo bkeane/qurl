@@ -1,0 +1,26 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Documentation Test API",
+    "version": "1.0.0",
+    "description": "Test API for documentation display"
+  },
+  "servers": [
+    {
+      "url": "https://prod.kaixo.io/binnit/main/src"
+    }
+  ],
+  "paths": {
+    "/documented": {
+      "get": {
+        "summary": "Well documented endpoint",
+        "description": "This endpoint is thoroughly documented",
+        "responses": {
+          "200": {
+            "description": "Successful response"
+          }
+        }
+      }
+    }
+  }
+}

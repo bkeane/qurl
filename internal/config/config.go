@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/brendan.keane/qurl/internal/errors"
+	"github.com/rs/zerolog"
 	"github.com/spf13/pflag"
 )
 
@@ -29,14 +30,12 @@ type Config struct {
 
 	// MCP settings
 	MCP MCPConfig
-
-	// Logging
-	Logger LoggerConfig
 }
 
 // MCPConfig holds MCP-specific configuration
 type MCPConfig struct {
 	Enabled        bool
+	Description    string    // Server description for LLM context
 	AllowedMethods []string // Parsed from Method flag in MCP mode
 	PathPrefix     string    // Path constraint from positional argument
 	Headers        []string  // Inherited from -H flags
@@ -46,12 +45,6 @@ type MCPConfig struct {
 	OpenAPIURL     string    // Inherited from --openapi
 }
 
-// LoggerConfig holds logging configuration
-type LoggerConfig struct {
-	Level      string
-	Format     string // "pretty" or "json"
-	WithCaller bool
-}
 
 // contextKey is a custom type for context keys
 type contextKey string
@@ -73,11 +66,6 @@ func FromContext(ctx context.Context) (*Config, bool) {
 // NewConfig creates a Config with default values
 func NewConfig() *Config {
 	return &Config{
-		Logger: LoggerConfig{
-			Level:      "warn",
-			Format:     "pretty",
-			WithCaller: false,
-		},
 		Methods: []string{"GET"},
 	}
 }
@@ -155,29 +143,21 @@ func LoadFromFlags(flags *pflag.FlagSet) (*Config, error) {
 		}
 	}
 
-	// Get log-level flag value
-	if config.Logger.Level, err = flags.GetString("log-level"); err != nil {
-		return nil, errors.Wrap(err, errors.ErrorTypeConfig, "failed to get log-level flag")
-	}
-
-	// Override with environment variable if flag not explicitly set
-	if !flags.Changed("log-level") {
-		if envLevel := os.Getenv("QURL_LOG_LEVEL"); envLevel != "" {
-			config.Logger.Level = strings.ToLower(envLevel)
-		}
-	}
-
-	// Set log format from environment variable
-	if envFormat := os.Getenv("QURL_LOG_FORMAT"); envFormat != "" {
-		envFormat = strings.ToLower(envFormat)
-		if envFormat == "json" || envFormat == "pretty" {
-			config.Logger.Format = envFormat
-		}
-	}
-
-	// Configure logging based on verbosity
+	// Configure debug mode for verbose flag
 	if config.Verbose {
-		config.Logger.Level = "debug"
+		zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	}
+
+	// MCP-specific flags
+	if config.MCP.Description, err = flags.GetString("mcp-desc"); err != nil {
+		return nil, errors.Wrap(err, errors.ErrorTypeConfig, "failed to get mcp-desc flag")
+	}
+
+	// If not set via flag, try environment variable
+	if config.MCP.Description == "" {
+		if desc := os.Getenv("QURL_MCP_DESCRIPTION"); desc != "" {
+			config.MCP.Description = desc
+		}
 	}
 
 	// Propagate settings to MCP config

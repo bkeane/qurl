@@ -1,0 +1,24 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Development API",
+    "version": "0.1.0-dev"
+  },
+  "servers": [
+    {
+      "url": "https://prod.kaixo.io/binnit/main/src"
+    }
+  ],
+  "paths": {
+    "/dev": {
+      "get": {
+        "summary": "Development endpoint",
+        "responses": {
+          "200": {
+            "description": "Success"
+          }
+        }
+      }
+    }
+  }
+}

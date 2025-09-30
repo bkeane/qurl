@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"net/url"
 	"os"
 
 	"github.com/brendan.keane/qurl/internal/config"
@@ -95,31 +94,39 @@ func (h *responseHandler) HandleResponseForMCP(resp *http.Response, method, targ
 
 // showRequestDetails displays request information for verbose mode
 func (h *responseHandler) showRequestDetails(method, targetURL string, req *http.Request) {
-	parsedURL, _ := url.Parse(targetURL)
+	// Print request line to stderr
+	fmt.Fprintf(os.Stderr, "%s %s\n", method, targetURL)
 
-	fmt.Fprintf(os.Stderr, "> %s %s\n", method, targetURL)
-	if parsedURL != nil {
-		fmt.Fprintf(os.Stderr, "> Host: %s\n", parsedURL.Host)
-	}
-
-	// Show headers
-	for key, values := range req.Header {
-		for _, value := range values {
-			fmt.Fprintf(os.Stderr, "> %s: %s\n", key, value)
+	// Print headers to stderr if request is available
+	if req != nil {
+		for key, values := range req.Header {
+			for _, value := range values {
+				fmt.Fprintf(os.Stderr, "%s: %s\n", key, value)
+			}
 		}
 	}
-	fmt.Fprintf(os.Stderr, ">\n")
+
+	// Print request body if available
+	if h.config.Data != "" {
+		fmt.Fprintf(os.Stderr, "\n%s\n", h.config.Data)
+	}
+
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 // showResponseDetails displays detailed response information for verbose mode
 func (h *responseHandler) showResponseDetails(resp *http.Response) {
-	fmt.Fprintf(os.Stderr, "< %s %s\n", resp.Proto, resp.Status)
+	// Print response status line to stderr
+	fmt.Fprintf(os.Stderr, "%s %s\n", resp.Proto, resp.Status)
+
+	// Print headers to stderr
 	for key, values := range resp.Header {
 		for _, value := range values {
-			fmt.Fprintf(os.Stderr, "< %s: %s\n", key, value)
+			fmt.Fprintf(os.Stderr, "%s: %s\n", key, value)
 		}
 	}
-	fmt.Fprintf(os.Stderr, "<\n")
+
+	fmt.Fprintf(os.Stderr, "\n")
 }
 
 // showResponseHeaders displays response headers for include mode

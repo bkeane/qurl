@@ -8,15 +8,34 @@ import (
 	"github.com/brendan.keane/qurl/internal/cli"
 	"github.com/brendan.keane/qurl/internal/config"
 	"github.com/brendan.keane/qurl/internal/errors"
-	qurlogger "github.com/brendan.keane/qurl/internal/logger"
+	internalhttp "github.com/brendan.keane/qurl/internal/http"
 	"github.com/brendan.keane/qurl/pkg/openapi"
 	qurlhttp "github.com/brendan.keane/qurl/pkg/http"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
 )
 
+func init() {
+	zerolog.SetGlobalLevel(zerolog.WarnLevel)
+	log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stderr})
+
+	if value, ok := os.LookupEnv("QURL_LOG_LEVEL"); ok {
+		if level, err := zerolog.ParseLevel(value); err == nil {
+			zerolog.SetGlobalLevel(level)
+		}
+	}
+
+	if value, ok := os.LookupEnv("QURL_LOG_FORMAT"); ok {
+		if value == "json" {
+			log.Logger = zerolog.New(os.Stderr).With().Timestamp().Logger()
+		}
+	}
+}
+
 func main() {
 	if err := execute(); err != nil {
+		// Use presentation layer for user-friendly error output
 		errors.PresentError(err)
 		os.Exit(1)
 	}
@@ -95,18 +114,8 @@ func execute() error {
 				cfg.MCP.PathPrefix = args[0]
 			}
 
-			// Initialize logger
-			loggerConfig := &qurlogger.Config{
-				Level:      cfg.Logger.Level,
-				Format:     cfg.Logger.Format,
-				WithCaller: false,
-				Output:     os.Stderr,
-				TimeFormat: time.RFC3339,
-			}
-			logger := qurlogger.InitLogger(loggerConfig)
-
-			// Store logger and config in context
-			ctx := logger.WithContext(cmd.Context())
+			// Store global logger and config in context
+			ctx := log.Logger.WithContext(cmd.Context())
 			ctx = config.WithConfig(ctx, &cfg)
 			cmd.SetContext(ctx)
 
@@ -144,6 +153,7 @@ func execute() error {
 
 	// MCP mode flag
 	flags.BoolVar(&mcpMode, "mcp", false, "Start MCP server for LLM integration")
+	flags.StringVar(&cfg.MCP.Description, "mcp-desc", "", "MCP server description for LLM context (env: QURL_MCP_DESCRIPTION)")
 
 	// OpenAPI and server configuration
 	flags.StringVar(&cfg.OpenAPIURL, "openapi", "", "OpenAPI spec URL (env: QURL_OPENAPI)")
@@ -163,9 +173,6 @@ func execute() error {
 	// Authentication
 	flags.BoolVar(&cfg.SigV4Enabled, "aws-sigv4", false, "Sign requests with AWS SigV4")
 	flags.StringVar(&cfg.SigV4Service, "aws-service", "execute-api", "AWS service name for SigV4 signing")
-
-	// Logging configuration
-	flags.StringVar(&cfg.Logger.Level, "log-level", "warn", "Log level: trace|debug|info|warn|error (env: QURL_LOG_LEVEL)")
 
 	// Environment variable bindings
 	rootCmd.MarkPersistentFlagFilename("openapi")
@@ -223,12 +230,45 @@ func execute() error {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
-		// Try to get servers from OpenAPI spec
+		// Create HTTP client with authentication if needed
 		httpClient, err := qurlhttp.NewClient()
 		if err != nil {
 			return nil, cobra.ShellCompDirectiveNoFileComp
 		}
 
+		// Check if AWS SigV4 is enabled for authenticated completion
+		if sigv4, _ := cmd.Flags().GetBool("aws-sigv4"); sigv4 {
+			// Build minimal config for authentication
+			tempCfg := &config.Config{
+				SigV4Enabled: true,
+			}
+			if service, _ := cmd.Flags().GetString("aws-service"); service != "" {
+				tempCfg.SigV4Service = service
+			} else {
+				tempCfg.SigV4Service = "execute-api" // default
+			}
+
+			// Create authenticated client
+			authClient := internalhttp.NewAuthenticatedHTTPClient(tempCfg, log.Logger)
+			viewer := openapi.NewViewer(authClient, openAPIURL)
+
+			servers, err := viewer.GetServers()
+			if err != nil || len(servers) == 0 {
+				return nil, cobra.ShellCompDirectiveNoFileComp
+			}
+
+			// Return server URLs as completion options
+			var completions []string
+			for _, server := range servers {
+				if server.URL != "" {
+					completions = append(completions, server.URL)
+				}
+			}
+
+			return completions, cobra.ShellCompDirectiveNoFileComp
+		}
+
+		// Use regular HTTP client for non-authenticated requests
 		viewer := openapi.NewViewer(httpClient, openAPIURL)
 
 		servers, err := viewer.GetServers()

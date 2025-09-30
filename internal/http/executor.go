@@ -3,10 +3,7 @@ package http
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
-	"strings"
 	"time"
 
 	"github.com/brendan.keane/qurl/internal/config"
@@ -22,6 +19,7 @@ type executor struct {
 	openapi         OpenAPIProvider
 	urlResolver     URLResolver
 	responseHandler ResponseHandler
+	requestBuilder  *RequestBuilder
 	config          *config.Config
 }
 
@@ -35,12 +33,14 @@ func NewExecutorWithDependencies(
 	responseHandler ResponseHandler,
 	config *config.Config,
 ) HTTPExecutor {
+	requestBuilder := NewRequestBuilder(logger, config, openapi)
 	return &executor{
 		logger:          logger,
 		httpClient:      httpClient,
 		openapi:         openapi,
 		urlResolver:     urlResolver,
 		responseHandler: responseHandler,
+		requestBuilder:  requestBuilder,
 		config:          config,
 	}
 }
@@ -134,7 +134,7 @@ func (e *executor) executeRequest(ctx context.Context, path string) (*http.Respo
 	e.logger.Debug().Str("target_url", targetURL).Msg("URL resolved")
 
 	// Add query parameters
-	targetURL, err = e.applyQueryParameters(targetURL)
+	targetURL, err = ApplyQueryParameters(targetURL, e.config.QueryParams)
 	if err != nil {
 		e.logger.Error().Err(err).Msg("failed to apply query parameters")
 		return nil, "", errors.Wrap(err, errors.ErrorTypeValidation, "invalid query parameters")
@@ -170,61 +170,8 @@ func (e *executor) executeRequest(ctx context.Context, path string) (*http.Respo
 	return resp, targetURL, nil
 }
 
-// applyQueryParameters applies query parameters from config to the target URL
-func (e *executor) applyQueryParameters(targetURL string) (string, error) {
-	if len(e.config.QueryParams) == 0 {
-		return targetURL, nil
-	}
-
-	parsedURL, err := url.Parse(targetURL)
-	if err != nil {
-		return "", err
-	}
-
-	query := parsedURL.Query()
-
-	for _, param := range e.config.QueryParams {
-		parts := strings.SplitN(param, "=", 2)
-		if len(parts) == 2 {
-			query.Add(parts[0], parts[1])
-		}
-	}
-
-	parsedURL.RawQuery = query.Encode()
-	return parsedURL.String(), nil
-}
 
 // buildHTTPRequest creates an HTTP request with proper headers and body
 func (e *executor) buildHTTPRequest(ctx context.Context, method, targetURL, originalPath string) (*http.Request, error) {
-	var body io.Reader
-	if e.config.Data != "" {
-		body = strings.NewReader(e.config.Data)
-	}
-
-	req, err := http.NewRequestWithContext(ctx, method, targetURL, body)
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrorTypeNetwork, "failed to create HTTP request")
-	}
-
-	// Set headers from config
-	for _, header := range e.config.Headers {
-		parts := strings.SplitN(header, ":", 2)
-		if len(parts) == 2 {
-			key := strings.TrimSpace(parts[0])
-			value := strings.TrimSpace(parts[1])
-			req.Header.Set(key, value)
-		}
-	}
-
-	// Set headers from OpenAPI spec if available
-	if e.openapi != nil {
-		if err := e.openapi.SetHeaders(ctx, req, originalPath, method); err != nil {
-			// Log warning but don't fail the request
-			e.logger.Warn().Err(err).Msg("could not set headers from OpenAPI spec")
-		} else {
-			e.logger.Debug().Msg("OpenAPI headers applied")
-		}
-	}
-
-	return req, nil
+	return e.requestBuilder.Build(ctx, method, targetURL, originalPath)
 }

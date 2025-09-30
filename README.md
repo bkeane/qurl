@@ -82,7 +82,7 @@ qurl --mcp                                   # Full API access
 qurl --mcp -X GET                            # Read-only access
 qurl --mcp /pet/                             # Only /pet endpoints
 qurl --mcp -X GET -X POST /pet               # Only GET/POST on /pet
-qurl --mcp -H "Authorization: Bearer $TOKEN" # Include auth in all requests
+qurl --mcp -H "Authorization: Bearer $TOKEN" # Include header in all requests
 ```
 
 Use with Claude Desktop, Cline, or any MCP client.

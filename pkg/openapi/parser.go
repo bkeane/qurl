@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -37,8 +40,36 @@ func NewParserWithClient(client HTTPClient) *Parser {
 	}
 }
 
-func (p *Parser) LoadFromURL(ctx context.Context, url string) error {
-	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+func (p *Parser) LoadFromURL(ctx context.Context, urlStr string) error {
+	// Parse URL to check scheme
+	parsedURL, err := url.Parse(urlStr)
+	if err != nil {
+		return fmt.Errorf("parsing URL: %w", err)
+	}
+
+	// Handle file:// URIs by reading from local filesystem
+	if parsedURL.Scheme == "file" {
+		filePath := parsedURL.Path
+
+		// Special case: file://host/path URLs where host is not empty
+		// This means the path is actually host + path, treating it as relative
+		if parsedURL.Host != "" {
+			filePath = parsedURL.Host + parsedURL.Path
+		}
+
+		// Handle relative paths - if path doesn't start with /, treat as relative to current directory
+		if !filepath.IsAbs(filePath) {
+			var err error
+			filePath, err = filepath.Abs(filePath)
+			if err != nil {
+				return fmt.Errorf("resolving absolute path: %w", err)
+			}
+		}
+		return p.loadFromFile(filePath)
+	}
+
+	// Handle HTTP/HTTPS/Lambda URIs
+	req, err := http.NewRequestWithContext(ctx, "GET", urlStr, nil)
 	if err != nil {
 		return fmt.Errorf("creating request: %w", err)
 	}
@@ -59,6 +90,16 @@ func (p *Parser) LoadFromURL(ctx context.Context, url string) error {
 	}
 
 	return p.LoadFromBytes(body)
+}
+
+// loadFromFile loads an OpenAPI specification from a local file
+func (p *Parser) loadFromFile(filePath string) error {
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return fmt.Errorf("reading file %s: %w", filePath, err)
+	}
+
+	return p.LoadFromBytes(data)
 }
 
 func (p *Parser) LoadFromBytes(data []byte) error {
@@ -171,6 +212,13 @@ func (p *Parser) GetSecurity() []*base.SecurityRequirement {
 		return nil
 	}
 	return p.model.Model.Security
+}
+
+func (p *Parser) GetTags() ([]*base.Tag, error) {
+	if p.model == nil {
+		return nil, fmt.Errorf("no OpenAPI document loaded")
+	}
+	return p.model.Model.Tags, nil
 }
 
 func matchesPathFilter(path, filter string) bool {

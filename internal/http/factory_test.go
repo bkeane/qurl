@@ -80,43 +80,7 @@ func TestClientFactory_CreateExecutorWithCustomClient(t *testing.T) {
 	}
 }
 
-func TestGlobalFactory(t *testing.T) {
-	// Test that global factory initialization works
-	logger := zerolog.New(nil)
-	InitializeFactory(logger)
-
-	config := &config.Config{
-		Methods: []string{"GET"},
-		Server:  "https://example.com",
-	}
-
-	executor, err := CreateExecutor(config)
-	if err != nil {
-		t.Errorf("CreateExecutor() with global factory error = %v", err)
-	}
-
-	if executor == nil {
-		t.Error("CreateExecutor() with global factory returned nil")
-	}
-}
-
-func TestGlobalFactory_NotInitialized(t *testing.T) {
-	// Temporarily clear the global factory
-	oldFactory := defaultFactory
-	defaultFactory = nil
-	defer func() { defaultFactory = oldFactory }()
-
-	config := &config.Config{Methods: []string{"GET"}}
-
-	executor, err := CreateExecutor(config)
-	if err == nil {
-		t.Error("CreateExecutor() should error when factory not initialized")
-	}
-
-	if executor != nil {
-		t.Error("CreateExecutor() should return nil when factory not initialized")
-	}
-}
+// Global factory tests removed - no longer using global factory pattern
 
 // Mock implementations for testing
 

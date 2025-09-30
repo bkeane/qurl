@@ -13,7 +13,6 @@ import (
 	"github.com/brendan.keane/qurl/internal/errors"
 	"github.com/brendan.keane/qurl/internal/http"
 	"github.com/brendan.keane/qurl/pkg/openapi"
-	qurlhttp "github.com/brendan.keane/qurl/pkg/http"
 	"github.com/rs/zerolog"
 )
 
@@ -58,13 +57,9 @@ func NewServer(logger zerolog.Logger, cfg *config.Config) (*Server, error) {
 		return nil, errors.Wrap(err, errors.ErrorTypeNetwork, "failed to create HTTP executor for MCP server")
 	}
 
-	// Create OpenAPI viewer
-	qurlHTTPClient, err := qurlhttp.NewClient()
-	if err != nil {
-		return nil, errors.Wrap(err, errors.ErrorTypeNetwork, "failed to create HTTP client for OpenAPI")
-	}
-
-	viewer := openapi.NewViewer(qurlHTTPClient, cfg.OpenAPIURL)
+	// Create OpenAPI viewer with authenticated HTTP client
+	authClient := http.NewAuthenticatedHTTPClient(cfg, logger)
+	viewer := openapi.NewViewer(authClient, cfg.OpenAPIURL)
 
 	return &Server{
 		logger:     logger.With().Str("component", "mcp_server").Logger(),
@@ -134,23 +129,33 @@ func (s *Server) handleMessage(line string) error {
 
 // handleInitialize handles the MCP initialize request
 func (s *Server) handleInitialize(id interface{}, params interface{}) error {
+	// Build server info with optional description
+	serverInfo := map[string]interface{}{
+		"name":    "qurl",
+		"version": "1.0.0",
+	}
+
+	// Add description if configured
+	if s.config.MCP.Description != "" {
+		serverInfo["description"] = s.config.MCP.Description
+	}
+
 	// MCP initialize response with server capabilities
 	response := MCPResponse{
 		JSONRPC: "2.0",
 		ID:      id,
 		Result: map[string]interface{}{
 			"protocolVersion": "2024-11-05",
-			"serverInfo": map[string]interface{}{
-				"name":    "qurl",
-				"version": "1.0.0",
-			},
+			"serverInfo":      serverInfo,
 			"capabilities": map[string]interface{}{
 				"tools": map[string]interface{}{},
 			},
 		},
 	}
 
-	s.logger.Debug().Msg("sent MCP initialize response")
+	s.logger.Debug().
+		Str("description", s.config.MCP.Description).
+		Msg("sent MCP initialize response")
 	return s.sendResponse(response)
 }
 
@@ -159,24 +164,24 @@ func (s *Server) handleToolsList(id interface{}) error {
 	tools := []map[string]interface{}{
 		{
 			"name":        "discover",
-			"description": "Discover available OpenAPI endpoints and their documentation",
+			"description": "Discover available OpenAPI endpoints and their documentation. Without filters, lists all available paths (no details). For detailed request/response schemas, provide a specific path and optionally a method if the endpoint supports multiple verbs.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"path": map[string]interface{}{
 						"type":        "string",
-						"description": "Optional path filter (e.g., /users, /api/v1/*)",
+						"description": "Path filter. Use '*' or omit to list all paths. Provide specific path (e.g., /users/123) to see detailed schemas, parameters, and response types for that endpoint.",
 					},
 					"method": map[string]interface{}{
 						"type":        "string",
-						"description": "Optional HTTP method filter (GET, POST, etc.)",
+						"description": "HTTP method filter (GET, POST, PUT, DELETE, etc.). Required for detailed schemas if endpoint supports multiple methods. Use 'ANY' or omit to see all methods for a path.",
 					},
 				},
 			},
 		},
 		{
 			"name":        "execute",
-			"description": "Execute an HTTP request to an OpenAPI endpoint",
+			"description": "Execute an HTTP request to an OpenAPI endpoint. Supports optional response filtering via 'regex' (text search with context) or 'jmespath' (JSON filtering) parameters to reduce token usage for large responses.",
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
@@ -200,6 +205,19 @@ func (s *Server) handleToolsList(id interface{}) error {
 					"body": map[string]interface{}{
 						"type":        "string",
 						"description": "Request body data",
+					},
+					"regex": map[string]interface{}{
+						"type":        "string",
+						"description": "Regex pattern to search response text (returns matches with surrounding context). Works with any text format including minified JSON. Cannot be used with jmespath.",
+					},
+					"jmespath": map[string]interface{}{
+						"type":        "string",
+						"description": "JMESPath expression to filter JSON response (https://jmespath.org). Cannot be used with regex.",
+					},
+					"context_lines": map[string]interface{}{
+						"type":        "integer",
+						"description": "Amount of context to show around regex matches. Multiplied by ~80 characters per 'line' (default: 5 = ~400 chars of context). Only used with regex parameter.",
+						"default":     5,
 					},
 				},
 				"required": []string{"path"},
@@ -446,6 +464,60 @@ func (s *Server) executeHTTPRequest(id interface{}, args map[string]interface{})
 		return s.sendError(id, -32603, fmt.Sprintf("HTTP request failed: %v", err))
 	}
 
+	// Check for filter parameters
+	regexPattern, hasRegex := args["regex"].(string)
+	jmespathExpr, hasJMESPath := args["jmespath"].(string)
+
+	// Empty strings should not trigger filtering
+	if hasRegex && strings.TrimSpace(regexPattern) == "" {
+		hasRegex = false
+	}
+	if hasJMESPath && strings.TrimSpace(jmespathExpr) == "" {
+		hasJMESPath = false
+	}
+
+	// Validate mutual exclusivity
+	if hasRegex && hasJMESPath {
+		return s.sendError(id, -32602, "Cannot use both regex and jmespath filters simultaneously")
+	}
+
+	// Apply regex filter if requested
+	if hasRegex {
+		contextLines := 5 // default
+		if cl, ok := args["context_lines"].(float64); ok {
+			contextLines = int(cl)
+		}
+
+		s.logger.Debug().
+			Str("pattern", regexPattern).
+			Int("context_lines", contextLines).
+			Msg("applying regex filter")
+
+		filterResult, err := filterRegex(body, regexPattern, contextLines)
+		if err != nil {
+			s.logger.Error().Err(err).Msg("regex filter failed")
+			return s.sendError(id, -32603, fmt.Sprintf("Regex filter failed: %v", err))
+		}
+
+		return s.sendFilteredResponse(id, filterResult, statusCode, headers, &requestConfig)
+	}
+
+	// Apply jmespath filter if requested
+	if hasJMESPath {
+		s.logger.Debug().
+			Str("expression", jmespathExpr).
+			Msg("applying jmespath filter")
+
+		filterResult, err := filterJMESPath(body, jmespathExpr)
+		if err != nil {
+			s.logger.Error().Err(err).Msg("jmespath filter failed")
+			return s.sendError(id, -32603, fmt.Sprintf("JMESPath filter failed: %v", err))
+		}
+
+		return s.sendFilteredResponse(id, filterResult, statusCode, headers, &requestConfig)
+	}
+
+	// No filtering - return raw response
 	// Format response with status code and headers if verbose
 	var responseText string
 	if requestConfig.Verbose || requestConfig.IncludeHeaders {
@@ -475,6 +547,42 @@ func (s *Server) executeHTTPRequest(id interface{}, args map[string]interface{})
 					"text": responseText,
 				},
 			},
+		},
+	}
+
+	return s.sendResponse(response)
+}
+
+// sendFilteredResponse sends an MCP response with filtered content and metadata
+func (s *Server) sendFilteredResponse(id interface{}, filterResult *FilterResult, statusCode int, headers map[string][]string, cfg *config.Config) error {
+	contentText := filterResult.Content
+
+	// Prepend status/headers if verbose mode is enabled
+	if cfg.Verbose || cfg.IncludeHeaders {
+		prefix := fmt.Sprintf("HTTP Status: %d\n", statusCode)
+		if cfg.IncludeHeaders {
+			prefix += "\nHeaders:\n"
+			for key, values := range headers {
+				for _, value := range values {
+					prefix += fmt.Sprintf("%s: %s\n", key, value)
+				}
+			}
+			prefix += "\n"
+		}
+		contentText = prefix + contentText
+	}
+
+	response := MCPResponse{
+		JSONRPC: "2.0",
+		ID:      id,
+		Result: map[string]interface{}{
+			"content": []map[string]interface{}{
+				{
+					"type": "text",
+					"text": contentText,
+				},
+			},
+			"_meta": filterResult.Meta,
 		},
 	}
 

@@ -1,0 +1,53 @@
+name: test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Run unit tests
+        run: go test -v ./...
+
+  shellspec:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        spec:
+          - spec/file_spec.sh
+          - spec/http_spec.sh
+          - spec/lambda_spec.sh
+          - spec/petstore_spec.sh
+          - spec/request_response_spec.sh
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Build qurl
+        run: go build -o qurl
+
+      - name: Install ShellSpec
+        run: |
+          curl -fsSL https://git.io/shellspec | sh -s -- --yes
+          sudo ln -s ${HOME}/.local/lib/shellspec/shellspec /usr/local/bin/shellspec
+
+      - name: Run ShellSpec test - ${{ matrix.spec }}
+        run: shellspec ${{ matrix.spec }}
