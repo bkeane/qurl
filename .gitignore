@@ -33,5 +33,19 @@ Thumbs.db
 .env
 .env.local
 
+# Terraform
+**/.terraform/
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
 # Keep VS Code settings
 !.vscode/settings.json
