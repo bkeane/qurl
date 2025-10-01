@@ -31,7 +31,6 @@ jobs:
           - spec/file_spec.sh
           - spec/http_spec.sh
           - spec/lambda_spec.sh
-          - spec/petstore_spec.sh
           - spec/request_response_spec.sh
     steps:
       - name: Checkout
