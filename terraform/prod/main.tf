@@ -63,7 +63,7 @@ module "invoke" {
 
 resource "local_file" "action" {
   content = module.topology.action
-  filename = "../../../.github/actions/stages/action.yaml"
+  filename = "../../.github/actions/stages/action.yaml"
 }
 
 output "topology" {

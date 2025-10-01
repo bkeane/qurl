@@ -1,0 +1,58 @@
+"description": ""
+"inputs":
+  "account":
+    "description": "name of the account"
+    "required": true
+    "type": "string"
+  "region":
+    "default": "us-west-2"
+    "description": "region of the account"
+    "required": false
+    "type": "string"
+  "stage":
+    "description": "name of the stage"
+    "required": true
+    "type": "string"
+"name": "setup stage"
+"outputs":
+  "role_arn":
+    "description": "role arn for stage"
+    "value": "${{ steps.validation.outputs.role_arn }}"
+"runs":
+  "steps":
+  - "env":
+      "RESOURCES": "{\"dev\":{\"invoke\":{\"permissions_boundary_arn\":\"arn:aws:iam::831926600600:policy/qurl-invoke-permissions-boundary\",\"permissions_boundary_name\":\"qurl-invoke-permissions-boundary\",\"policy_arn\":\"arn:aws:iam::831926600600:policy/qurl-invoke-policy\",\"policy_name\":\"qurl-invoke-policy\",\"role_arn\":\"arn:aws:iam::831926600600:role/qurl-invoke-role\",\"role_name\":\"qurl-invoke-role\"}},\"prod\":{\"build\":{\"permissions_boundary_arn\":\"arn:aws:iam::677771948337:policy/qurl-ecr-mgmt-permissions-boundary\",\"permissions_boundary_name\":\"qurl-ecr-mgmt-permissions-boundary\",\"policy_arn\":\"arn:aws:iam::677771948337:policy/qurl-ecr-mgmt-policy\",\"policy_name\":\"qurl-ecr-mgmt-policy\",\"role_arn\":\"arn:aws:iam::677771948337:role/qurl-ecr-mgmt-role\",\"role_name\":\"qurl-ecr-mgmt-role\"},\"invoke\":{\"permissions_boundary_arn\":\"arn:aws:iam::677771948337:policy/qurl-invoke-permissions-boundary\",\"permissions_boundary_name\":\"qurl-invoke-permissions-boundary\",\"policy_arn\":\"arn:aws:iam::677771948337:policy/qurl-invoke-policy\",\"policy_name\":\"qurl-invoke-policy\",\"role_arn\":\"arn:aws:iam::677771948337:role/qurl-invoke-role\",\"role_name\":\"qurl-invoke-role\"}}}"
+    "id": "validation"
+    "name": "validation"
+    "uses": "actions/github-script@v7"
+    "with":
+      "script": |-
+        const resources = JSON.parse(process.env.RESOURCES);
+        const stage = '${{ inputs.stage }}';
+        const account = '${{ inputs.account }}';
+        // Validate resources[account] exists
+        if (!(account in resources)) {
+          console.error('Invalid account name given: ' + account);
+          console.error('Valid accounts are: ' + Object.keys(resources).join(', '));
+          process.exit(1);
+        }
+        // Validate resources[account][stage] exists
+        if (!(stage in resources[account])) {
+          console.error('Invalid stage name given: ' + stage);
+          console.error('Valid stages for account ' + account + ' are: ' + Object.keys(resources[account]).join(', '));
+          process.exit(1);
+        }
+        // Validate resources[account][stage].role_arn is not null
+        if (resources[account][stage].role_arn == null) {
+          console.error('No role arn found for account ' + account + ' and stage ' + stage);
+          process.exit(1);
+        }
+        core.setOutput('role_arn', resources[account][stage].role_arn);
+  - "id": "assume-role"
+    "name": "assume role"
+    "uses": "aws-actions/configure-aws-credentials@v4"
+    "with":
+      "aws-region": "${{ inputs.region }}"
+      "role-session-name": "${{ inputs.account }}-${{ inputs.stage }}-session"
+      "role-to-assume": "${{ steps.validation.outputs.role_arn }}"
+  "using": "composite"
