@@ -37,22 +37,27 @@ qurl --docs -X GET -X DELETE # All GET and DELETE endpoints
 qurl --docs -X POST /pet/    # POST endpoints under /pet
 ```
 
+Tab completion knows your API:
+```bash
+qurl <TAB>                              # Complete paths: /pet, /store, /user
+qurl -X <TAB>                           # Complete methods: GET, POST, PUT, DELETE
+qurl --server <TAB>                     # Complete servers from OpenAPI spec
+qurl /pet/findByStatus --query sta<TAB> # Complete params: status=
+```
+
 ## 🚀 Execute
 
 Make requests with curl-like syntax, enhanced by OpenAPI:
 
 ```bash
+# Using QURL_OPENAPI environment variable (recommended)
 qurl /pet/findByStatus --query status=available # GET with query param
 qurl -X DELETE /pet/123                         # Delete pet by ID
 qurl -v /store/inventory                        # Verbose output
-```
 
-Tab completion knows your API:
-```bash
-qurl <TAB>                              # Complete paths: /pet, /store, /user
-qurl -X <TAB>                           # Complete methods: GET, POST, PUT, DELETE
-qurl --server <TAB>                     # Complete servers.
-qurl /pet/findByStatus --query sta<TAB> # Complete params: status=
+# Direct URL (old fashioned way)
+qurl https://api.example.com/users              # GET request
+qurl -X POST https://api.example.com/users      # POST request
 ```
 
 ## 🔐 AWS
@@ -60,12 +65,15 @@ qurl /pet/findByStatus --query sta<TAB> # Complete params: status=
 Native AWS service integration:
 
 ```bash
-# Direct Lambda invocation
+# Lambda function invocation
+qurl lambda://my-function/users
+
+# Lambda function ivocatio via OpenAPI spec
 export QURL_OPENAPI=lambda://my-function/openapi.json
 qurl /endpoint
 
 # API Gateway with SigV4
-qurl --aws-sigv4 /pets
+qurl --aws-sigv4 /users
 
 # Any AWS service with SigV4
 AWS_REGION=us-east-1 qurl --aws-sigv4 --aws-service sts \
