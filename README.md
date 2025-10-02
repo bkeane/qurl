@@ -47,10 +47,11 @@ qurl /pet/findByStatus --query sta<TAB> # Complete params: status=
 
 ## 🚀 Execute
 
-Make requests with curl-like syntax, enhanced by OpenAPI:
+Make requests with curl-like syntax:
 
 ```bash
 # Using QURL_OPENAPI environment variable (recommended)
+export QURL_OPENAPI=https://petstore3.swagger.io/api/v3/openapi.json
 qurl /pet/findByStatus --query status=available # GET with query param
 qurl -X DELETE /pet/123                         # Delete pet by ID
 qurl -v /store/inventory                        # Verbose output
