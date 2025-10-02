@@ -128,8 +128,12 @@ func (v *Viewer) BaseURL(ctx context.Context) (string, error) {
 	if len(servers) > 0 && servers[0].URL != "" {
 		serverURL := servers[0].URL
 
-		// Check if the server URL is relative
-		if !strings.HasPrefix(serverURL, "http://") && !strings.HasPrefix(serverURL, "https://") {
+		// Check if the server URL is absolute (has a supported scheme)
+		isAbsolute := strings.HasPrefix(serverURL, "http://") ||
+			strings.HasPrefix(serverURL, "https://") ||
+			strings.HasPrefix(serverURL, "lambda://")
+
+		if !isAbsolute {
 			// It's a relative URL - combine with OpenAPI URL host
 			scheme, host, err := v.parseSpecURL()
 			if err != nil {

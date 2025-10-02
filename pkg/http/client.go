@@ -169,6 +169,11 @@ func httpRequestToLambdaEvent(req *http.Request) (*events.APIGatewayV2HTTPReques
 		headers[key] = strings.Join(values, ",")
 	}
 
+	// Add Host header from req.Host (it's not in req.Header in Go's http package)
+	if req.Host != "" {
+		headers["Host"] = req.Host
+	}
+
 	// Build query string parameters
 	queryParams := make(map[string]string)
 	for key, values := range req.URL.Query() {

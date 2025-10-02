@@ -51,6 +51,13 @@ func TestHTTPRequestToLambdaEvent(t *testing.T) {
 			if event.RequestContext.HTTP.Method != tt.req.Method {
 				t.Errorf("Expected method %s, got %v", tt.req.Method, event.RequestContext.HTTP.Method)
 			}
+
+			// Check Host header is populated from req.Host
+			if tt.req.Host != "" {
+				if event.Headers["Host"] != tt.req.Host {
+					t.Errorf("Expected Host header %s, got %v", tt.req.Host, event.Headers["Host"])
+				}
+			}
 		})
 	}
 }
@@ -135,6 +142,54 @@ func TestClientURLSchemeDetection(t *testing.T) {
 			isLambda := req.URL.Scheme == "lambda"
 			if isLambda != tt.wantLambda {
 				t.Errorf("URL %s: expected isLambda=%v, got %v", tt.url, tt.wantLambda, isLambda)
+			}
+		})
+	}
+}
+
+func TestHTTPRequestToLambdaEvent_HostHeader(t *testing.T) {
+	tests := []struct {
+		name         string
+		url          string
+		expectedHost string
+	}{
+		{
+			name:         "Lambda URL with function name",
+			url:          "lambda://binnit-main-src/openapi.json",
+			expectedHost: "binnit-main-src",
+		},
+		{
+			name:         "Lambda URL with path",
+			url:          "lambda://my-function/get",
+			expectedHost: "my-function",
+		},
+		{
+			name:         "Lambda URL with query params",
+			url:          "lambda://test-function/path?param=value",
+			expectedHost: "test-function",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequest("GET", tt.url, nil)
+			if err != nil {
+				t.Fatalf("Failed to create request: %v", err)
+			}
+
+			event, err := httpRequestToLambdaEvent(req)
+			if err != nil {
+				t.Fatalf("httpRequestToLambdaEvent() error = %v", err)
+			}
+
+			// Verify Host header is set from req.Host
+			if event.Headers["Host"] != tt.expectedHost {
+				t.Errorf("Expected Host header %q, got %q", tt.expectedHost, event.Headers["Host"])
+			}
+
+			// Also verify req.Host is populated correctly
+			if req.Host != tt.expectedHost {
+				t.Errorf("Expected req.Host %q, got %q", tt.expectedHost, req.Host)
 			}
 		})
 	}
