@@ -27,7 +27,7 @@ qurl --docs
 
 ## 🔍 Explore
 
-Use `--docs` to browse your API. The same filters that work for requests also filter documentation:
+Use `--docs` to browse your API. The same options that configure requests also act as documentation filters:
 
 ```bash
 qurl --docs                  # All endpoints
@@ -84,7 +84,7 @@ AWS_REGION=us-east-1 qurl --aws-sigv4 --aws-service sts \
 
 ## 🤖 MCP
 
-Start an MCP server for LLM integration. Request filters become safety constraints:
+Start an MCP server for LLM integration. Request filters act as safety constraints:
 
 ```bash
 qurl --mcp                                   # Full API access
