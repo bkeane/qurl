@@ -285,8 +285,5 @@ func getOpenAPIURL() string {
 	if url := os.Getenv("QURL_OPENAPI"); url != "" {
 		return url
 	}
-	if url := os.Getenv("OPENAPI_URL"); url != "" {
-		return url
-	}
 	return ""
 }

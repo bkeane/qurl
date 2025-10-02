@@ -65,12 +65,12 @@ qurl -X POST https://api.example.com/users      # POST request
 Native AWS service integration:
 
 ```bash
-# Lambda function invocation
+# HTTP compatible Lambda function invocation
 qurl lambda://my-function/users
 
-# Lambda function ivocatio via OpenAPI spec
+# HTTP compatible Lambda function ivocation via OpenAPI spec
 export QURL_OPENAPI=lambda://my-function/openapi.json
-qurl /endpoint
+qurl --docs
 
 # API Gateway with SigV4
 qurl --aws-sigv4 /users
@@ -106,7 +106,8 @@ Use with Claude Desktop, Cline, or any MCP client.
             "-H", "Authorization: Bearer $TOKEN"
          ],
          "env":{
-            "QURL_OPENAPI":"https://petstore3.swagger.io/api/v3/openapi.json"
+            "QURL_OPENAPI":"https://petstore3.swagger.io/api/v3/openapi.json",
+            "QURL_MCP_DESCRIPTION":"Petstore API - manage pets, orders, and users in the pet store"
          }
       }
    }
@@ -116,7 +117,14 @@ Use with Claude Desktop, Cline, or any MCP client.
 ## Configuration
 
 ```bash
-export QURL_OPENAPI=https://api.example.com/openapi.json # OpenAPI spec URL
-export QURL_SERVER=https://staging.api.com               # Override server
-export QURL_LOG_LEVEL=debug                              # Log verbosity
+# OpenAPI and Server
+export QURL_OPENAPI=https://api.example.com/openapi.yaml # OpenAPI spec URL
+export QURL_SERVER=https://staging.api.com               # Override server URL
+
+# Logging
+export QURL_LOG_LEVEL=debug                              # Log verbosity (debug, info, warn, error)
+export QURL_LOG_FORMAT=json                              # Log format (json, pretty)
+
+# MCP
+export QURL_MCP_DESCRIPTION="API description and purpose" # Help LLM understand when to use this API
 ```
