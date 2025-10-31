@@ -3,6 +3,8 @@ package http
 import (
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -138,4 +140,105 @@ func TestClientURLSchemeDetection(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestClientCreationWithoutAWSConfig verifies that creating a client and making
+// regular HTTP/HTTPS requests does NOT require AWS credentials to be configured.
+// This is a regression test for the issue where AWS config was loaded unconditionally,
+// causing failures for users with MFA-enabled AWS profiles when making non-AWS requests.
+func TestClientCreationWithoutAWSConfig(t *testing.T) {
+	// Set up environment to simulate missing/broken AWS credentials
+	// This ensures AWS config loading would fail if attempted
+	originalHome := os.Getenv("HOME")
+	originalAWSProfile := os.Getenv("AWS_PROFILE")
+	originalAWSRegion := os.Getenv("AWS_REGION")
+	originalAWSAccessKey := os.Getenv("AWS_ACCESS_KEY_ID")
+	originalAWSSecretKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
+
+	defer func() {
+		// Restore original environment
+		os.Setenv("HOME", originalHome)
+		os.Setenv("AWS_PROFILE", originalAWSProfile)
+		os.Setenv("AWS_REGION", originalAWSRegion)
+		os.Setenv("AWS_ACCESS_KEY_ID", originalAWSAccessKey)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", originalAWSSecretKey)
+	}()
+
+	// Clear AWS environment variables to ensure no valid AWS config exists
+	os.Setenv("HOME", t.TempDir())
+	os.Unsetenv("AWS_PROFILE")
+	os.Unsetenv("AWS_REGION")
+	os.Unsetenv("AWS_REGION")
+	os.Unsetenv("AWS_DEFAULT_REGION")
+	os.Unsetenv("AWS_ACCESS_KEY_ID")
+	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+	os.Unsetenv("AWS_SESSION_TOKEN")
+
+	// Test 1: Client creation should succeed without AWS config
+	client, err := NewClient()
+	if err != nil {
+		t.Fatalf("NewClient() failed without AWS config: %v", err)
+	}
+	if client == nil {
+		t.Fatal("NewClient() returned nil client")
+	}
+
+	// Test 2: Regular HTTPS requests should work without AWS config
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"success"}`))
+	}))
+	defer server.Close()
+
+	req, err := http.NewRequest("GET", server.URL+"/test", nil)
+	if err != nil {
+		t.Fatalf("Failed to create request: %v", err)
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("client.Do() failed for regular HTTPS request without AWS config: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("Expected status 200, got %d", resp.StatusCode)
+	}
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("Failed to read response body: %v", err)
+	}
+
+	if !strings.Contains(string(body), "success") {
+		t.Errorf("Expected response to contain 'success', got: %s", string(body))
+	}
+}
+
+// TestClientLazyAWSInitialization verifies that AWS config is only loaded
+// when actually needed (i.e., when making a lambda:// request), not at client creation time.
+func TestClientLazyAWSInitialization(t *testing.T) {
+	// Clear AWS environment to ensure config loading would fail
+	originalAWSRegion := os.Getenv("AWS_REGION")
+	defer os.Setenv("AWS_REGION", originalAWSRegion)
+	os.Unsetenv("AWS_REGION")
+	os.Unsetenv("AWS_DEFAULT_REGION")
+
+	// Client creation should succeed even without AWS config
+	client, err := NewClient()
+	if err != nil {
+		t.Fatalf("NewClient() should succeed without AWS config: %v", err)
+	}
+
+	// Verify that Lambda client is not initialized yet
+	if client.lambdaClient != nil {
+		t.Error("Lambda client should not be initialized at client creation time")
+	}
+
+	if client.awsConfig != nil {
+		t.Error("AWS config should not be loaded at client creation time")
+	}
+
+	// Note: We can't test actual lambda:// invocation here without valid AWS credentials,
+	// but we've verified that initialization is deferred and regular HTTP works
 }
