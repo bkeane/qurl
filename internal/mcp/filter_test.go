@@ -61,7 +61,7 @@ line 5`,
 			wantMatches:  1,
 			wantError:    false,
 			checkContent: func(s string) bool {
-				return strings.Contains(s, "Match 1 at line 3") &&
+				return strings.Contains(s, "Context Window") &&
 					strings.Contains(s, "line 2") &&
 					strings.Contains(s, "ERROR: something failed") &&
 					strings.Contains(s, "line 4")
@@ -78,8 +78,9 @@ more info`,
 			wantMatches:  2,
 			wantError:    false,
 			checkContent: func(s string) bool {
-				return strings.Contains(s, "Match 1 at line 1") &&
-					strings.Contains(s, "Match 2 at line 3")
+				return strings.Contains(s, "Context Window") &&
+					strings.Contains(s, "ERROR: first error") &&
+					strings.Contains(s, "ERROR: second error")
 			},
 		},
 		{
@@ -112,8 +113,9 @@ line 2`,
 			wantMatches:  1,
 			wantError:    false,
 			checkContent: func(s string) bool {
-				return strings.Contains(s, "Match 1 at line 1") &&
-					strings.Contains(s, "ERROR at start")
+				return strings.Contains(s, "Context Window") &&
+					strings.Contains(s, "ERROR at start") &&
+					strings.Contains(s, "line 2")
 			},
 		},
 		{

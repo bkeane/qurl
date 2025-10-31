@@ -258,6 +258,17 @@ func TestBaseURL(t *testing.T) {
 			}`,
 			expected: "https://api.example.com/api/v1", // Add leading slash to relative URL
 		},
+		{
+			name:    "spec with lambda:// server URL",
+			specURL: "lambda://binnit-main-src/openapi.json",
+			specContent: `{
+				"openapi": "3.0.0",
+				"info": {"title": "Binnit API", "version": "1.0.0"},
+				"servers": [{"url": "lambda://binnit-main-src"}],
+				"paths": {}
+			}`,
+			expected: "lambda://binnit-main-src", // Use lambda:// URL as-is (absolute)
+		},
 	}
 
 	for _, tt := range tests {

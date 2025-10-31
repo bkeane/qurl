@@ -70,11 +70,39 @@ methods, err := viewer.MethodCompletions(ctx, "/users")
 // Returns: ["GET", "POST", "DELETE", ...]
 ```
 
+### HTTP Request Enhancement
+
+```go
+// Automatically set Accept header based on OpenAPI response types
+req, _ := http.NewRequest("GET", "https://api.example.com/users", nil)
+err := viewer.SetHeaders(ctx, req, "/users", "GET")
+// Sets Accept header to content types defined in spec (e.g., "application/json")
+
+// Get base URL from OpenAPI spec servers
+baseURL, err := viewer.BaseURL(ctx)
+// Returns first server URL from spec
+
+// Get all server configurations
+servers, err := viewer.GetServers()
+// Returns all server objects from spec
+```
+
+### Loading Spec from Bytes
+
+```go
+// Load spec directly from bytes (useful for testing or embedded specs)
+specData := []byte(`{"openapi": "3.0.0", ...}`)
+docs, err := viewer.ViewFromBytes(specData, "/users", "GET")
+```
+
 ### Parser (Advanced)
 
 ```go
 // Create parser
 parser := openapi.NewParser()
+
+// Create parser with custom HTTP client
+parser := openapi.NewParserWithClient(customHTTPClient)
 
 // Load from URL
 err := parser.LoadFromURL(ctx, "https://api.example.com/openapi.yaml")
@@ -84,6 +112,13 @@ err := parser.LoadFromBytes(specData)
 
 // Get structured path information
 paths, err := parser.GetPaths("/users*", "GET")
+
+// Get API metadata
+info, err := parser.GetInfo()
+servers, err := parser.GetServers()
+securitySchemes, err := parser.GetSecuritySchemes()
+security := parser.GetSecurity()
+tags, err := parser.GetTags()
 ```
 
 ## URL Sources

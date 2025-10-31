@@ -16,6 +16,72 @@ import (
 	"github.com/rs/zerolog"
 )
 
+const (
+	discoverToolDescription = `Use this tool BEFORE calling execute to understand what endpoints are available, what parameters they accept, and what response structure they return.
+
+**When to use:**
+- Always call this FIRST when exploring a new API or endpoint
+- Call with no parameters to browse all available endpoints
+- Call with a specific path to see detailed documentation including:
+  - Required and optional parameters
+  - Request body schemas
+  - Response body structure and JSON keys
+  - This helps you craft targeted jmespath or regex filters to extract only the data you need
+
+**Why this matters:**
+Understanding the response structure lets you use filters effectively, saving tokens by requesting only relevant data instead of the full response.`
+
+	executeToolDescription = `Make HTTP requests to API endpoints. IMPORTANT: Always use filters (jmespath or regex) when you only need specific data from the response.
+
+**Best practices:**
+1. Use 'discover' tool first to understand the response structure
+2. Use 'jmespath' filter for JSON responses when you only need specific fields (saves tokens!)
+3. Use 'regex' filter to search for specific patterns in any response type
+4. Only request unfiltered responses when you need the complete data
+
+**Filtering is strongly encouraged** - it reduces token usage and helps you extract exactly what you need. If the user asks for specific information, always try to filter the response rather than returning everything.`
+
+	discoverPathParamDescription = `Path filter. Omit or use '*' to list all available endpoints.
+
+Provide a specific path (e.g., /users/123) to see complete documentation including:
+- Request parameters (query, path, header)
+- Request body schemas with field descriptions
+- Response body structure showing all available JSON keys
+- This information is ESSENTIAL for crafting effective jmespath or regex filters`
+
+	discoverMethodParamDescription = `HTTP method filter (GET, POST, PUT, DELETE, etc.).
+
+Specify a method to see detailed schemas for that specific operation. Use 'ANY' or omit to see all available methods for the path.`
+
+	executePathParamDescription      = `API endpoint path (required)`
+	executeMethodParamDescription    = `HTTP method (GET, POST, PUT, DELETE, etc.)`
+	executeHeadersParamDescription   = `HTTP headers as key-value pairs`
+	executeQueryParamDescription     = `Query parameters as key-value pairs`
+	executeBodyParamDescription      = `Request body data`
+	executeRegexParamDescription     = `Regex pattern to search response text (returns matches with surrounding context).
+
+Works with any text format including minified JSON. Use this when searching for specific patterns or terms. Cannot be used with jmespath.
+
+**When to use:** Searching for specific strings, patterns, or when you don't know the exact JSON structure.`
+
+	executeJMESPathParamDescription = `JMESPath expression to filter JSON response (https://jmespath.org).
+
+**STRONGLY RECOMMENDED** when working with JSON responses and you only need specific fields. This dramatically reduces token usage.
+
+Cannot be used with regex.
+
+**Examples:**
+- 'items[].name' - extract just the name field from an array
+- 'data.{id: id, name: name}' - extract only id and name fields
+- 'items[?price > 100]' - filter items by condition
+
+**When to use:** Always prefer this for JSON responses when you need specific fields rather than the entire response.`
+
+	executeContextLinesParamDescription = `Amount of context to show around regex matches. Multiplied by ~80 characters per 'line' (default: 5 = ~400 chars of context).
+
+Only used with regex parameter. Increase for more context, decrease for more precise matches.`
+)
+
 // Server implements the MCP server protocol
 type Server struct {
 	logger     zerolog.Logger
@@ -164,59 +230,59 @@ func (s *Server) handleToolsList(id interface{}) error {
 	tools := []map[string]interface{}{
 		{
 			"name":        "discover",
-			"description": "Discover available OpenAPI endpoints and their documentation. Without filters, lists all available paths (no details). For detailed request/response schemas, provide a specific path and optionally a method if the endpoint supports multiple verbs.",
+			"description": discoverToolDescription,
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"path": map[string]interface{}{
 						"type":        "string",
-						"description": "Path filter. Use '*' or omit to list all paths. Provide specific path (e.g., /users/123) to see detailed schemas, parameters, and response types for that endpoint.",
+						"description": discoverPathParamDescription,
 					},
 					"method": map[string]interface{}{
 						"type":        "string",
-						"description": "HTTP method filter (GET, POST, PUT, DELETE, etc.). Required for detailed schemas if endpoint supports multiple methods. Use 'ANY' or omit to see all methods for a path.",
+						"description": discoverMethodParamDescription,
 					},
 				},
 			},
 		},
 		{
 			"name":        "execute",
-			"description": "Execute an HTTP request to an OpenAPI endpoint. Supports optional response filtering via 'regex' (text search with context) or 'jmespath' (JSON filtering) parameters to reduce token usage for large responses.",
+			"description": executeToolDescription,
 			"inputSchema": map[string]interface{}{
 				"type": "object",
 				"properties": map[string]interface{}{
 					"path": map[string]interface{}{
 						"type":        "string",
-						"description": "API endpoint path (required)",
+						"description": executePathParamDescription,
 					},
 					"method": map[string]interface{}{
 						"type":        "string",
-						"description": "HTTP method (GET, POST, PUT, DELETE, etc.)",
+						"description": executeMethodParamDescription,
 						"default":     "GET",
 					},
 					"headers": map[string]interface{}{
 						"type":        "object",
-						"description": "HTTP headers as key-value pairs",
+						"description": executeHeadersParamDescription,
 					},
 					"query": map[string]interface{}{
 						"type":        "object",
-						"description": "Query parameters as key-value pairs",
+						"description": executeQueryParamDescription,
 					},
 					"body": map[string]interface{}{
 						"type":        "string",
-						"description": "Request body data",
+						"description": executeBodyParamDescription,
 					},
 					"regex": map[string]interface{}{
 						"type":        "string",
-						"description": "Regex pattern to search response text (returns matches with surrounding context). Works with any text format including minified JSON. Cannot be used with jmespath.",
+						"description": executeRegexParamDescription,
 					},
 					"jmespath": map[string]interface{}{
 						"type":        "string",
-						"description": "JMESPath expression to filter JSON response (https://jmespath.org). Cannot be used with regex.",
+						"description": executeJMESPathParamDescription,
 					},
 					"context_lines": map[string]interface{}{
 						"type":        "integer",
-						"description": "Amount of context to show around regex matches. Multiplied by ~80 characters per 'line' (default: 5 = ~400 chars of context). Only used with regex parameter.",
+						"description": executeContextLinesParamDescription,
 						"default":     5,
 					},
 				},

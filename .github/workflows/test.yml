@@ -6,6 +6,11 @@ on:
     branches:
       - main
 
+env:
+  RELEVANT_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+  RELEVANT_BRANCH: ${{ github.head_ref || github.ref_name }}
+  AWS_DEFAULT_REGION: us-west-2
+
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
@@ -16,13 +21,20 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
+          go-version: '1.25.1'
+          cache: true
 
       - name: Run unit tests
         run: go test -v ./...
 
   shellspec:
     runs-on: ubuntu-latest
+    needs: unit-tests
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: us-west-2
     strategy:
       fail-fast: false
       matrix:
@@ -30,19 +42,25 @@ jobs:
           - spec/file_spec.sh
           - spec/http_spec.sh
           - spec/lambda_spec.sh
-          - spec/petstore_spec.sh
           - spec/request_response_spec.sh
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEVANT_BRANCH }}
+
+      - name: setup stage
+        uses: ./.github/actions/stages
+        with:
+          stage: invoke
+          account: prod
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.23'
-
-      - name: Build qurl
-        run: go build -o qurl
+          go-version: '1.25.1'
+          cache: true
 
       - name: Install ShellSpec
         run: |

@@ -58,9 +58,6 @@ func execute() error {
 			if len(args) == 0 {
 				// Get OpenAPI URL - try multiple sources
 				openAPIURL := os.Getenv("QURL_OPENAPI")
-				if openAPIURL == "" {
-					openAPIURL = os.Getenv("OPENAPI_URL")
-				}
 				if flagVal, _ := cmd.Flags().GetString("openapi"); flagVal != "" {
 					openAPIURL = flagVal
 				}
@@ -184,9 +181,6 @@ func execute() error {
 
 		// Try to enhance with OpenAPI-specific methods, but don't fail if we can't
 		openAPIURL := os.Getenv("QURL_OPENAPI")
-		if openAPIURL == "" {
-			openAPIURL = os.Getenv("OPENAPI_URL")
-		}
 		if flagVal, _ := cmd.Flags().GetString("openapi"); flagVal != "" {
 			openAPIURL = flagVal
 		}
@@ -218,9 +212,6 @@ func execute() error {
 	rootCmd.RegisterFlagCompletionFunc("server", func(cmd *cobra.Command, args []string, toComplete string) ([]string, cobra.ShellCompDirective) {
 		// Get OpenAPI URL from environment or flags
 		openAPIURL := os.Getenv("QURL_OPENAPI")
-		if openAPIURL == "" {
-			openAPIURL = os.Getenv("OPENAPI_URL")
-		}
 		if flagVal, _ := cmd.Flags().GetString("openapi"); flagVal != "" {
 			openAPIURL = flagVal
 		}

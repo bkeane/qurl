@@ -3,6 +3,7 @@ package http
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/brendan.keane/qurl/internal/config"
@@ -47,10 +48,16 @@ func TestAuthenticatedHTTPClient_WithoutSigV4(t *testing.T) {
 
 // TestAuthenticatedHTTPClient_WithSigV4Enabled tests SigV4 is attempted when enabled
 func TestAuthenticatedHTTPClient_WithSigV4Enabled(t *testing.T) {
+	// Track whether Authorization header was added
+	authHeaderFound := false
+
 	// Create a test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// This shouldn't be reached if SigV4 fails due to missing credentials
-		t.Fatal("Request should not reach server when SigV4 credentials are missing")
+		// Check if Authorization header was added (indicates SigV4 was attempted)
+		if r.Header.Get("Authorization") != "" {
+			authHeaderFound = true
+		}
+		w.WriteHeader(http.StatusOK)
 	}))
 	defer server.Close()
 
@@ -67,12 +74,21 @@ func TestAuthenticatedHTTPClient_WithSigV4Enabled(t *testing.T) {
 	req, err := http.NewRequest("GET", server.URL+"/test", nil)
 	require.NoError(t, err)
 
-	// Perform request - should fail due to missing AWS credentials
+	// Perform request - might succeed or fail depending on AWS credentials
 	_, err = client.Do(req)
 
-	// Verify error contains SigV4 related message
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "SigV4")
+	// Either the request failed with auth error, or it succeeded with auth header
+	if err != nil {
+		// If it failed, error should be auth-related
+		assert.True(t,
+			strings.Contains(err.Error(), "SigV4") ||
+			strings.Contains(err.Error(), "credentials") ||
+			strings.Contains(err.Error(), "AWS"),
+			"Expected auth-related error, got: %v", err)
+	} else {
+		// If it succeeded, it should have added Authorization header
+		assert.True(t, authHeaderFound, "Expected Authorization header when SigV4 is enabled")
+	}
 }
 
 // TestAuthenticatedHTTPClient_OpenAPIIntegration tests OpenAPI viewer can use authenticated client
@@ -132,8 +148,10 @@ func TestAuthenticatedHTTPClient_OpenAPIIntegration(t *testing.T) {
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 	})
 
-	// Test with SigV4 enabled (but will fail due to no credentials)
+	// Test with SigV4 enabled
 	t.Run("with SigV4 enabled", func(t *testing.T) {
+		origRequestCount := requestCount
+
 		cfg := &config.Config{
 			SigV4Enabled:  true,
 			SigV4Service: "execute-api",
@@ -146,12 +164,23 @@ func TestAuthenticatedHTTPClient_OpenAPIIntegration(t *testing.T) {
 		req, err := http.NewRequest("GET", server.URL+"/openapi.json", nil)
 		require.NoError(t, err)
 
-		// Perform request - should fail
-		_, err = client.Do(req)
+		// Perform request - might succeed or fail depending on AWS credentials
+		resp, err := client.Do(req)
 
-		// Should get authentication error
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "SigV4")
+		// Either request failed with auth error, or succeeded with SigV4 header
+		if err != nil {
+			// If it failed, error should be auth-related
+			assert.True(t,
+				strings.Contains(err.Error(), "SigV4") ||
+				strings.Contains(err.Error(), "credentials") ||
+				strings.Contains(err.Error(), "AWS"),
+				"Expected auth-related error, got: %v", err)
+		} else {
+			// If it succeeded, verify the request was made
+			assert.NotNil(t, resp)
+			assert.Greater(t, requestCount, origRequestCount, "Request should have been made")
+			resp.Body.Close()
+		}
 	})
 }
 

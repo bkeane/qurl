@@ -250,29 +250,6 @@ func TestLoadFromFlags_EnvironmentVariables(t *testing.T) {
 			},
 		},
 		{
-			name: "OPENAPI_URL fallback when QURL_OPENAPI not set",
-			envVars: map[string]string{
-				"OPENAPI_URL": "https://fallback.example.com/openapi.json",
-			},
-			expectedConfig: func(c *Config) {
-				if c.OpenAPIURL != "https://fallback.example.com/openapi.json" {
-					t.Errorf("OpenAPIURL: got %q, expected %q", c.OpenAPIURL, "https://fallback.example.com/openapi.json")
-				}
-			},
-		},
-		{
-			name: "QURL_OPENAPI takes precedence over OPENAPI_URL",
-			envVars: map[string]string{
-				"QURL_OPENAPI": "https://preferred.example.com/openapi.json",
-				"OPENAPI_URL": "https://fallback.example.com/openapi.json",
-			},
-			expectedConfig: func(c *Config) {
-				if c.OpenAPIURL != "https://preferred.example.com/openapi.json" {
-					t.Errorf("OpenAPIURL: got %q, expected QURL_OPENAPI value %q", c.OpenAPIURL, "https://preferred.example.com/openapi.json")
-				}
-			},
-		},
-		{
 			name: "QURL_LOG_FORMAT json",
 			envVars: map[string]string{
 				"QURL_LOG_FORMAT": "json",
