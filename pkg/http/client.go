@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -38,39 +39,44 @@ func DefaultLambdaConfig() LambdaConfig {
 }
 
 // Client wraps the standard http.Client and adds Lambda invocation support
+// Lambda client is initialized lazily on first lambda:// request
 type Client struct {
 	*http.Client
 	lambdaClient *lambda.Client
-	awsConfig    aws.Config
+	awsConfig    *aws.Config
+	initOnce     sync.Once
+	initErr      error
 }
 
-// NewClient creates a new HTTP client with Lambda support
+// NewClient creates a new HTTP client with lazy Lambda support
+// AWS config is only loaded when a lambda:// URL is actually invoked
 func NewClient() (*Client, error) {
-	// Load AWS config
-	cfg, err := config.LoadDefaultConfig(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("loading AWS config: %w", err)
-	}
-
 	return &Client{
-		Client:       http.DefaultClient,
-		lambdaClient: lambda.NewFromConfig(cfg),
-		awsConfig:    cfg,
+		Client: http.DefaultClient,
 	}, nil
 }
 
 // NewClientWithHTTPClient creates a new client with a custom HTTP client
+// AWS config is only loaded when a lambda:// URL is actually invoked
 func NewClientWithHTTPClient(httpClient *http.Client) (*Client, error) {
-	cfg, err := config.LoadDefaultConfig(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("loading AWS config: %w", err)
-	}
-
 	return &Client{
-		Client:       httpClient,
-		lambdaClient: lambda.NewFromConfig(cfg),
-		awsConfig:    cfg,
+		Client: httpClient,
 	}, nil
+}
+
+// initLambdaClient lazily loads AWS config and creates Lambda client
+// This is only called when a lambda:// URL is actually invoked
+func (c *Client) initLambdaClient(ctx context.Context) error {
+	c.initOnce.Do(func() {
+		cfg, err := config.LoadDefaultConfig(ctx)
+		if err != nil {
+			c.initErr = fmt.Errorf("loading AWS config: %w", err)
+			return
+		}
+		c.awsConfig = &cfg
+		c.lambdaClient = lambda.NewFromConfig(cfg)
+	})
+	return c.initErr
 }
 
 // Do performs the request, routing to Lambda or HTTP based on the URL scheme
@@ -102,6 +108,11 @@ func (c *Client) Post(url, contentType string, body io.Reader) (*http.Response, 
 
 // doLambda handles Lambda invocations
 func (c *Client) doLambda(req *http.Request) (*http.Response, error) {
+	// Initialize Lambda client on first use
+	if err := c.initLambdaClient(req.Context()); err != nil {
+		return nil, err
+	}
+
 	// Extract Lambda function name from hostname
 	functionName := req.URL.Host
 	if functionName == "" {
